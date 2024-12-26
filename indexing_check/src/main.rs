@@ -43,7 +43,7 @@ async fn async_task(task_name: &str) {
 
 async fn schedule_task(cron_expression: &str, task_name: &'static str) {
     let schedule = Schedule::from_str(cron_expression).expect("Failed to parse CRON expression");
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500)); // 0.5초 간격으로 검사
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(60000)); // 0.5초 간격으로 검사
 
     loop {
         interval.tick().await;
@@ -67,9 +67,9 @@ async fn main() {
     
     let cron_jobs = vec![
         ("* 10,26,30 6-23,0-4 * * * *", "Task 1"),
-        ("* 59 * * * * *", "Task 2"),
+        ("* 03 * * * * *", "Task 2"),
     ];
-
+    
     let tasks: Vec<_> = cron_jobs
         .iter()
         .map(|(expression, name)| {
@@ -77,12 +77,12 @@ async fn main() {
             tokio::spawn(task)
         })
         .collect();
-
+    
     for task in tasks {
         let _ = task.await;
     }
 
-
+    
     
     // loop {
                 

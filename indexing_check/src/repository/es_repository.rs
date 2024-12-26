@@ -23,9 +23,9 @@ pub fn initialize_elastic_clients() -> VecDeque<EsRepositoryPub> {
             panic!("{:?}", e)
         }
     };
-
+    
     /* Number of Elasticsearch connection pool */
-    let pool_cnt = *config.pool_cnt();
+    let pool_cnt = *config.elastic_pool_cnt();
     
     let es_host = config.elastic_host();
     let es_id = config.elastic_id().clone().unwrap_or(String::from(""));

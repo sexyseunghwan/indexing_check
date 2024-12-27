@@ -1,7 +1,6 @@
 use crate::common::*;
 
 
-
 #[doc = "Functions that return the current UTC time -> NaiveDate"]
 pub fn get_current_utc_naivedate() -> NaiveDate {
     
@@ -30,12 +29,13 @@ pub fn get_current_kor_naive_datetime() -> NaiveDateTime {
 /*  
     Function that returns the current UTC time as a string
 */
-// pub fn get_current_utc_naivedate_str(fmt: &str) -> String {
+#[doc = ""]
+pub fn get_current_utc_naivedate_str(fmt: &str) -> Result<String, anyhow::Error> {
 
-//     let curr_time = get_current_utc_naivedate();
-//     get_str_from_naivedate(curr_time, fmt)
+    let curr_time = get_current_utc_naivedate();
+    get_str_from_naivedate(curr_time, fmt)
     
-// }
+}
 
 
 #[doc = "Function that converts the date data 'naivedate' format to the string format"]

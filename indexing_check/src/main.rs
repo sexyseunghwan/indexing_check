@@ -12,8 +12,7 @@ use core::panic;
 use common::*;
 
 mod utils_modules;
-use handler::main_handler;
-use service::smtp_service;
+use utils_modules::time_utils::*;
 use utils_modules::logger_utils::*;
 use utils_modules::io_utils::*;
 
@@ -43,11 +42,15 @@ async fn async_task(task_name: &str) {
 
 async fn schedule_task(cron_expression: &str, task_name: &'static str) {
     let schedule = Schedule::from_str(cron_expression).expect("Failed to parse CRON expression");
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(60000)); // 0.5초 간격으로 검사
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(60000)); // 1분 간격으로 검사
+
+    println!("check");
 
     loop {
         interval.tick().await;
-        let now = Utc::now();
+        
+        let now: DateTime<Utc> = Utc::now();
+        
         if let Some(next) = schedule.upcoming(Utc).take(1).next() {
             if (next - now).num_seconds() < 1 {
                 println!("Running task: {} at {:?}", task_name, next);
@@ -57,6 +60,40 @@ async fn schedule_task(cron_expression: &str, task_name: &'static str) {
     }
 }
 
+#[doc = ""]
+async fn main_schedule_task(index_schedule: IndexSchedules) {
+    
+    let schedule = Schedule::from_str(&index_schedule.time).expect("Failed to parse CRON expression");
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(6000));
+    
+    let query_service: QueryServicePub = QueryServicePub::new();
+    let smtp_service: SmtpServicePub = SmtpServicePub::new();
+    let index_storage_service: IndexStorageServicePub =  IndexStorageServicePub::new(index_schedule);
+    
+    let main_handler: MainHandler<SmtpServicePub, QueryServicePub, IndexStorageServicePub> = MainHandler::new(smtp_service, query_service, index_storage_service);
+    
+    let kst_offset = match FixedOffset::east_opt(9 * 3600) {
+        Some(kst_offset) => kst_offset,
+        None => {
+            error!("[Error][main_schedule_task()] There was a problem initializing 'kst_offset'.");
+            panic!("[Error][main_schedule_task()] There was a problem initializing 'kst_offset'.");
+        }
+    };
+    
+    loop {
+        interval.tick().await;
+
+        let now: DateTime<Utc> = Utc::now();
+        let kst_now = now.with_timezone(&kst_offset); /* Converting UTC Current Time to KST */ 
+        
+        if let Some(next) = schedule.upcoming(kst_offset).take(1).next() {
+            if (next - kst_now).num_seconds() < 1 {
+                let _ = main_handler.main_task().await;
+            }
+        }
+    }
+
+}
 
 
 #[tokio::main]
@@ -65,22 +102,45 @@ async fn main() {
     /* 전역 로거설정 */
     set_global_logger();
     
-    let cron_jobs = vec![
-        ("* 10,26,30 6-23,0-4 * * * *", "Task 1"),
-        ("* 03 * * * * *", "Task 2"),
-    ];
-    
-    let tasks: Vec<_> = cron_jobs
-        .iter()
-        .map(|(expression, name)| {
-            let task = schedule_task(expression, name);
-            tokio::spawn(task)
-        })
-        .collect();
-    
+    /* 확인이 필요한 색인될 인덱스 정보들 */
+    let index_schdules: IndexSchedulesConfig = match read_toml_from_file::<IndexSchedulesConfig>("./config/index_list.toml") {
+        Ok(index_schdules) => index_schdules,
+        Err(e) => {
+            error!("{:?}", e);
+            panic!("{:?}", e);
+        }
+    };
+        
+    let tasks: Vec<_> = 
+        index_schdules.index
+            .iter()
+            .map(|index: &IndexSchedules| {
+                let task = main_schedule_task(index.clone());
+                tokio::spawn(task)
+            })
+            .collect();
+        
     for task in tasks {
         let _ = task.await;
     }
+
+    
+    // let cron_jobs = vec![
+    //     ("* 10,26,30 6-23,0-4 * * * *", "Task 1"),
+    //     ("* 50,51,52 * * * * *", "Task 2"),
+    // ];
+    
+    // let tasks: Vec<_> = cron_jobs
+    //     .iter()
+    //     .map(|(expression, name)| {
+    //         let task = schedule_task(expression, name);
+    //         tokio::spawn(task)
+    //     })
+    //     .collect();
+    
+    // for task in tasks {
+    //     let _ = task.await;
+    // }
 
     
     

@@ -6,6 +6,7 @@ use crate::common::*;
 pub struct IndexSchedules {
     pub index_name: String,
     pub time: String,
+    pub duration: i64,
     pub size: usize,
     pub indexing_type: String 
 }

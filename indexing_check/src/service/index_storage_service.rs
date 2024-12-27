@@ -6,23 +6,30 @@ use crate::model::IndexSchedulesConfig::*;
 #[async_trait]
 pub trait IndexStorageService {
 
-    fn get_index_schedule_vec(&self) -> Vec<IndexSchedules>;
+    fn get_index_name(&self) -> String;
+    fn get_index_schedule_info(&self) -> IndexSchedules;
 
 }
 
 #[derive(Debug, Getters, new)]
 #[getset(get = "pub")]
 pub struct IndexStorageServicePub {
-    pub index_schedule_vec: Vec<IndexSchedules>
+    pub index_schedule: IndexSchedules
 }
 
 
 #[async_trait]
 impl IndexStorageService for IndexStorageServicePub {
-    
+
+    fn get_index_name(&self) -> String {
+        let index_schedule  = &self.index_schedule;
+        index_schedule.index_name.clone()
+    }
+
+
     #[doc = ""]
-    fn get_index_schedule_vec(&self) -> Vec<IndexSchedules> {
-        self.index_schedule_vec.clone()
+    fn get_index_schedule_info(&self) -> IndexSchedules {
+        self.index_schedule.clone()
     }
 
 }

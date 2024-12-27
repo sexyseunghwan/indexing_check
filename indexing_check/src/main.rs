@@ -32,36 +32,8 @@ use service::smtp_service::*;
 use service::index_storage_service::*;
 
 
-use std::str::FromStr;
-
-async fn async_task(task_name: &str) {
-    println!("Executing async task: {}", task_name);
-    // 여기에 실제 비동기 로직을 구현하거나 외부 API 호출 등을 포함할 수 있습니다.
-    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await; // 시뮬레이션을 위한 1초 대기
-}
-
-async fn schedule_task(cron_expression: &str, task_name: &'static str) {
-    let schedule = Schedule::from_str(cron_expression).expect("Failed to parse CRON expression");
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(60000)); // 1분 간격으로 검사
-
-    println!("check");
-
-    loop {
-        interval.tick().await;
-        
-        let now: DateTime<Utc> = Utc::now();
-        
-        if let Some(next) = schedule.upcoming(Utc).take(1).next() {
-            if (next - now).num_seconds() < 1 {
-                println!("Running task: {} at {:?}", task_name, next);
-                async_task(task_name).await; // 비동기 작업 실행
-            }
-        }
-    }
-}
-
 #[doc = ""]
-async fn main_schedule_task(index_schedule: IndexSchedules) {
+async fn main_schedule_task(index_schedule: IndexSchedules) -> Result<(), anyhow::Error> {
     
     let schedule = Schedule::from_str(&index_schedule.time).expect("Failed to parse CRON expression");
     let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(6000));
@@ -72,6 +44,7 @@ async fn main_schedule_task(index_schedule: IndexSchedules) {
     
     let main_handler: MainHandler<SmtpServicePub, QueryServicePub, IndexStorageServicePub> = MainHandler::new(smtp_service, query_service, index_storage_service);
     
+    // 한국 표준시로 맞춤
     let kst_offset = match FixedOffset::east_opt(9 * 3600) {
         Some(kst_offset) => kst_offset,
         None => {
@@ -88,11 +61,15 @@ async fn main_schedule_task(index_schedule: IndexSchedules) {
         
         if let Some(next) = schedule.upcoming(kst_offset).take(1).next() {
             if (next - kst_now).num_seconds() < 1 {
-                let _ = main_handler.main_task().await;
+                match main_handler.main_task().await {
+                    Ok(_) => (),
+                    Err(e) => {
+                        error!("[Error][main_schedule_task()] {:?}", e);
+                    }
+                }
             }
         }
     }
-
 }
 
 
@@ -110,7 +87,7 @@ async fn main() {
             panic!("{:?}", e);
         }
     };
-        
+    
     let tasks: Vec<_> = 
         index_schdules.index
             .iter()
@@ -119,10 +96,24 @@ async fn main() {
                 tokio::spawn(task)
             })
             .collect();
-        
+    
     for task in tasks {
-        let _ = task.await;
+        match task.await {
+            Ok(result) => match result {
+                Ok(_) => (),
+                Err(e) => error!("[Error][main()] {:?}", e),
+            },
+            Err(e) => println!("Task panicked: {:?}", e),
+        }
     }
+}
+
+
+
+
+   // for task in tasks {
+    //     let _ = task.await;
+    // }
 
     
     // let cron_jobs = vec![
@@ -202,4 +193,3 @@ async fn main() {
     //     break;
     // }
     
-}

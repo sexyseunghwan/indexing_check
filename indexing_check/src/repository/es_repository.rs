@@ -3,6 +3,7 @@ use crate::common::*;
 use crate::utils_modules::io_utils::*;
 
 use crate::model::ElasticServerConfig::*;
+use crate::model::Config::*;
 
 
 #[doc = "Elasticsearch connection object to be used in a single tone"]
@@ -16,13 +17,14 @@ pub fn initialize_elastic_clients() -> VecDeque<EsRepositoryPub> {
     
     info!("initialize_elastic_clients() START!");
     
-    let config: ElasticServerConfig = match read_toml_from_file::<ElasticServerConfig>("./config/elastic_config.toml") {
-        Ok(config) => config,
-        Err(e) => {
-            error!("[Error][initialize_elastic_clients()] The config file could not be found. : {:?}", e);
-            panic!("{:?}", e)
-        }
-    };
+    // let config: ElasticServerConfig = match read_toml_from_file::<ElasticServerConfig>("./config/elastic_config.toml") {
+    //     Ok(config) => config,
+    //     Err(e) => {
+    //         error!("[Error][initialize_elastic_clients()] The config file could not be found. : {:?}", e);
+    //         panic!("{:?}", e)
+    //     }
+    // };
+    let config = get_elasticsearch_config_info();
     
     /* Number of Elasticsearch connection pool */
     let pool_cnt = *config.elastic_pool_cnt();

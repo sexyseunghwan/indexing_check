@@ -13,6 +13,7 @@ pub use std::{
     fs::File,
     io::{ BufReader, Write, Read },
     task::{ Context, Poll },
+    str::FromStr
 };
 
 pub use derive_new::new;

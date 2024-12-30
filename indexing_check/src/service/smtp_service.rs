@@ -8,25 +8,11 @@ use crate::model::EmailStruct::*;
 use crate::utils_modules::io_utils::*;
 
 
-// #[doc = "smtp 통신 객체를 초기화해주는 함수"]
-// /// # Arguments
-// /// * `smtp_info_path`
-// /// * `email_receiver_info` 
-// /// 
-// /// # Returns
-// /// * Result<SmtpRepositoryPub, anyhow::Error>
-// pub fn initialize_smtp_clients(smtp_info_path: &str, email_receiver_info: &str) -> Result<SmtpServicePub, anyhow::Error> {
-
-//     let receiver_email_list  = read_toml_from_file::<ReceiverEmailConfig>(email_receiver_info)?;
-//     let smtp_repo = SmtpServicePub::new(receiver_email_list);
-    
-//     Ok(smtp_repo)
-// }
 
 #[async_trait]
 pub trait SmtpService {
     async fn send_message_to_receiver_html(&self, email_id: &str, subject: &str, html_content: &str) -> Result<(), anyhow::Error>;
-    async fn send_message_to_receivers(&self, send_email_form: &Vec<EmailStruct>, cluster_name: &str) -> Result<(), anyhow::Error>;
+    async fn send_message_to_receivers(&self, email_subject: &str, send_email_form: EmailStruct, cluster_name: &str) -> Result<(), anyhow::Error>;
 } 
 
 
@@ -63,9 +49,9 @@ impl SmtpService for SmtpServicePub {
     
     #[doc = "수신자에게 이메일을 보내주는 함수"]
     /// # Arguments
-    /// * `email_id`
-    /// * `subject` 
-    /// * `html_content`
+    /// * `email_id`        - 수신자 이메일 주소
+    /// * `subject`         - 이메일 제목
+    /// * `html_content`    - 이메일 양식 (HTML 양식)
     /// 
     /// # Returns
     /// * Result<(), anyhow::Error>
@@ -88,7 +74,7 @@ impl SmtpService for SmtpServicePub {
             smtp_config_info.credential_id().to_string(), 
             smtp_config_info.credential_pw().to_string()
         );
-        
+                
         let mailer = 
             AsyncSmtpTransport::<lettre::Tokio1Executor>::relay(smtp_config_info.smtp_name().as_str())?
                 .credentials(creds)
@@ -106,25 +92,21 @@ impl SmtpService for SmtpServicePub {
 
     #[doc = "지정된 수신자 모두에게 이메일을 보내주는 함수"]
     /// # Arguments
-    /// * `send_email_form`
-    /// * `cluster_name` 
+    /// * `email_subject`   - 이메일 제목
+    /// * `send_email_form` - 이메일 양식 (HTML 양식)
+    /// * `cluster_name`    - Elasticsearch Cluster 이름
     /// 
     /// # Returns
     /// * Result<(), anyhow::Error>
-    async fn send_message_to_receivers(&self, send_email_form: &Vec<EmailStruct>, cluster_name: &str) -> Result<(), anyhow::Error> {
+    async fn send_message_to_receivers(&self, email_subject: &str, send_email_form: EmailStruct, cluster_name: &str) -> Result<(), anyhow::Error> {
         
         let receiver_email_list = &self.receiver_email_list().emails;
         
         let html_template = std::fs::read_to_string("./html/view.html")?;        
-        let mut index_list_html = String::new();
-
-        for email in send_email_form {
-            index_list_html.push_str(&email.html_form);
-        }
-
+        
         let html_content = html_template
             .replace("{cluster_name}", cluster_name)
-            .replace("{index_list}", &index_list_html);
+            .replace("{index_list}", &send_email_form.html_form);
         
         /* Not Async */                
         // for receiver in receiver_email_list {
@@ -137,9 +119,9 @@ impl SmtpService for SmtpServicePub {
             .iter()
             .map(|receiver| {
                 let email_id = receiver.email_id();
-                self.send_message_to_receiver_html(email_id.as_str(), "[Elasticsearch] Log Index removed list", &html_content)
+                self.send_message_to_receiver_html(email_id.as_str(), email_subject, &html_content)
             });
-        
+
         let results = join_all(tasks).await;
 
         for result in results {

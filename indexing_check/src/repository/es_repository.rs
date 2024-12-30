@@ -2,7 +2,6 @@ use crate::common::*;
 
 use crate::utils_modules::io_utils::*;
 
-use crate::model::ElasticServerConfig::*;
 use crate::model::Config::*;
 
 

@@ -3,6 +3,7 @@ use crate::common::*;
 use crate::model::ElasticServerConfig::*;
 use crate::model::SmtpConfig::*;
 use crate::model::TelegramConfig::*;
+use crate::model::SystemConfig::*;
 
 use crate::utils_modules::io_utils::*;
 
@@ -21,25 +22,33 @@ pub fn initialize_server_config() -> Config {
 }
 
 
-#[doc = ""]
+#[doc = "Elasticsearch config 정보"]
 pub fn get_elasticsearch_config_info() -> Arc<ElasticServerConfig> {
 
     let elastic_config = &SERVER_CONFIG.elasticsearch;
     Arc::clone(elastic_config)
 }
 
-#[doc = ""]
+#[doc = "SMTP config 정보"]
 pub fn get_smtp_config_info() -> Arc<SmtpConfig> {
 
     let smtp_config = &SERVER_CONFIG.smtp;
     Arc::clone(smtp_config)
 }
 
-#[doc = ""]
+#[doc = "Telegram config 정보"]
 pub fn get_telegram_config_info() -> Arc<TelegramConfig> {
 
     let telegram_config = &SERVER_CONFIG.telegram;
     Arc::clone(telegram_config)
+}
+
+#[doc = "System config 정보"]
+pub fn get_system_config_info() -> Arc<SystemConfig> {
+
+    let system_config = &SERVER_CONFIG.system;
+    Arc::clone(system_config)
+
 }
 
 
@@ -48,6 +57,7 @@ pub struct Config {
     pub elasticsearch: Arc<ElasticServerConfig>,
     pub smtp: Arc<SmtpConfig>,
     pub telegram: Arc<TelegramConfig>,
+    pub system: Arc<SystemConfig>
 }
 
 
@@ -56,6 +66,7 @@ pub struct ConfigNotSafe {
     pub elasticsearch: ElasticServerConfig,
     pub smtp: SmtpConfig,
     pub telegram: TelegramConfig,
+    pub system: SystemConfig
 }
 
 
@@ -74,7 +85,8 @@ impl Config {
         Config {
             elasticsearch: Arc::new(system_config.elasticsearch),
             smtp: Arc::new(system_config.smtp),
-            telegram: Arc::new(system_config.telegram)
+            telegram: Arc::new(system_config.telegram),
+            system: Arc::new(system_config.system)
         }
     }
 }

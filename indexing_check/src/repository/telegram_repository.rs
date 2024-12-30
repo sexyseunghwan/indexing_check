@@ -1,35 +1,31 @@
 use crate::common::*;
 
-use crate::utils_modules::io_utils::*;
+use crate::model::Config::*;
 
-/* 전역 Telebot 인스턴스를 선언 */ 
+#[doc = "전역 Telebot 인스턴스를 선언"]
 static TELEGRAM_REPO: once_lazy<Arc<TelebotRepositoryPub>> = once_lazy::new(|| {
     initialize_tele_bot_client()
 });
 
 
-/*
-    Telebot 을 전역적으로 초기화 함.
-*/
+
+#[doc = "Telebot 을 전역적으로 초기화 함."]
 pub fn initialize_tele_bot_client() -> Arc<TelebotRepositoryPub> {
 
-    let tele_info_path = "./config/tele_bot_config.toml";
-    let tele_bot: TelebotRepositoryPub = match read_toml_from_file::<TelebotRepositoryPub>(tele_info_path) {
-        Ok(tele_bot) => tele_bot,
-        Err(e) => {
-            error!("[Error][initialize_tele_bot_client()] cannot read '{}' : {:?}", tele_info_path, e);
-            panic!("{:?}",e)
-        }
-    };
+    info!("initialize_tele_bot_client() START!");
     
-    Arc::new(tele_bot)
+    let telegram_config = get_telegram_config_info();
+    let bot_token = telegram_config.bot_token();
+    let chat_room_id = telegram_config.chat_room_id();
+
+    let tele_repo: TelebotRepositoryPub = TelebotRepositoryPub::new(bot_token.clone(), chat_room_id.clone());
+
+    Arc::new(tele_repo)
 }
 
 
-/*
-    TelebotService 를 Thread-safe 하게 이용하는 함수.
-*/
-pub fn get_telegram_service() -> Arc<TelebotRepositoryPub> {
+#[doc = "TelebotService 를 Thread-safe 하게 이용하는 함수."]
+pub fn get_telegram_repo() -> Arc<TelebotRepositoryPub> {
     Arc::clone(&TELEGRAM_REPO)
 }
 
@@ -52,7 +48,13 @@ pub struct TelebotRepositoryPub {
 #[async_trait]
 impl TelebotRepository for TelebotRepositoryPub {
    
-   /* Telegram bot 이 메시지를 보내주는 기능 -> 3번 실패 시 에러발생 */ 
+
+   #[doc = "Telegram bot 이 메시지를 보내주는 기능 -> 3번 실패 시 에러발생"]
+    /// # Arguments
+    /// * `send_msg` - Telegram 을 통해서 보내줄 메시지
+    /// 
+    /// # Returns
+    /// * Result<(), anyhow::Error>
    async fn bot_send(&self, send_msg: &str) -> Result<(), anyhow::Error> {
        
        let url = format!("https://api.telegram.org/bot{}/sendMessage", self.bot_token);
@@ -64,7 +66,7 @@ impl TelebotRepository for TelebotRepositoryPub {
 
        let client = reqwest::Client::new();
        
-       // 최대 3번의 시도를 수행
+       /* 최대 3번의 시도를 수행 */ 
        for try_cnt in 0..3 {
            
            match self.try_send(&client, &url, &body).await {
@@ -88,13 +90,16 @@ impl TelebotRepository for TelebotRepositoryPub {
    }
    
     
-    /* 메시지를 직접 보내주는 함수 */ 
-    async fn try_send(
-        &self,
-        client: &reqwest::Client,
-        url: &str,
-        body: &Value,
-    ) -> Result<(), anyhow::Error> {
+
+    #[doc = "메시지를 직접 보내주는 함수"]
+    /// # Arguments
+    /// * `client` - Telegram 메시지 통신을 위한 클라이언트
+    /// * `url` - Telegram bot 을 통해서 메시지를 보내줄 url 정보
+    /// * `body` - Telegram Bot 에 대한 상세정보: chat_id, 메시지
+    /// 
+    /// # Returns
+    /// * Result<(), anyhow::Error>
+    async fn try_send(&self, client: &reqwest::Client, url: &str, body: &Value) -> Result<(), anyhow::Error> {
         
         let res = client
             .post(url)

@@ -36,7 +36,7 @@ pub fn read_toml_from_file<T: DeserializeOwned>(file_path: &str) -> Result<T, an
 
 #[doc = "Function to convert structure to JSON value"]
 /// # Arguments
-/// * input_struct - 
+/// * input_struct - json 으로 변환할 구조체
 /// 
 /// # Returns
 /// * Result<Value, anyhow::Error>

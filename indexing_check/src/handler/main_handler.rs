@@ -1,53 +1,61 @@
-use rand::seq::index;
-
 use crate::common::*;
 
+use crate::model::EmailStruct::*;
 use crate::service::smtp_service::*;
 use crate::service::query_service::*;
 use crate::service::index_storage_service::*;
+use crate::service::telegram_service::*;
 
 use crate::model::IndexSchedulesConfig::*;
-use crate::model::Config::*;
 use crate::model::VectorIndexLog::*;
+use crate::model::Config::*;
 
-use crate::utils_modules::io_utils::*;
 use crate::utils_modules::time_utils::*;
 
 
-pub struct MainHandler<S: SmtpService, Q: QueryService, I: IndexStorageService> {
+pub struct MainHandler<S: SmtpService, Q: QueryService, I: IndexStorageService, T: TelegramService> {
     smtp_service: S,
     query_service: Q,
-    index_storage_service: I
+    index_storage_service: I,
+    telegram_service: T
 }
 
 
-impl<S: SmtpService, Q: QueryService, I: IndexStorageService> MainHandler<S, Q, I> {
+impl<S: SmtpService, Q: QueryService, I: IndexStorageService, T: TelegramService> MainHandler<S, Q, I, T> {
     
-    pub fn new(smtp_service: S, query_service: Q, index_storage_service: I) -> Self {
+    pub fn new(smtp_service: S, query_service: Q, index_storage_service: I, telegram_service: T) -> Self {
         Self {
             smtp_service,
             query_service,
-            index_storage_service
+            index_storage_service,
+            telegram_service
         }
     }
     
-    
+
     #[doc = "인덱스 정적 색인 작업 확인 함수"]
     pub async fn main_task(&self) -> Result<(), anyhow::Error> {
         
         // 탐색할 인덱스 이름을 가져온다 -> UTC 시간 기준으로 이름이 맵핑된다.
+        // ==== Prod ====
         let curr_date_utc = get_current_utc_naivedate_str("%Y-%m-%d")?;
-        //let search_index_name = format!("vector-index-logs-{}", curr_date_utc);
-        let search_index_name = String::from("vector-indexing-logs-2024-12-24"); // for test
+        let search_index = get_system_config_info();
+        let search_index_name = format!("{}-{}", search_index.log_index_name(), curr_date_utc);
+        // ==== Prod ====
         
-        // 인덱스 스케쥴 정보
-        let index_schedule_info = self.index_storage_service.get_index_schedule_info();
+        // ==== DEV ====
+        //let search_index_name = String::from("vector-indexing-logs-2024-12-24"); // for test
+        // ==== DEV ====
         
-        // 정보 검색
+        /* 인덱스 스케쥴 정보 */ 
+        let index_schedule_info: IndexSchedules = self.index_storage_service.get_index_schedule_info();
+        
+        /* 현재시간 */ 
         let curr_time_utc: NaiveDateTime = get_currnet_utc_naivedatetime();
-        let time_minutes_ago: NaiveDateTime = curr_time_utc - chrono::Duration::seconds(index_schedule_info.duration);
+        /* 색인 동작시간 */
+        let time_minutes_ago: NaiveDateTime = curr_time_utc - chrono::Duration::seconds(index_schedule_info.duration); 
         
-        // 정보 확인
+        /* 색인 로그 확인 -> ES 쿼리 */ 
         let vector_index_logs: Vec<VectorIndexLog> = self.query_service.get_indexing_movement_log(
             &search_index_name, 
             index_schedule_info.index_name(), 
@@ -55,37 +63,84 @@ impl<S: SmtpService, Q: QueryService, I: IndexStorageService> MainHandler<S, Q, 
             time_minutes_ago, 
             curr_time_utc).await?;
         
-        // 벡터로그 인덱스 검수 -> 색인이 잘 되었는지 확인.
-        let mut index_succ_flag = false;
-        let mut cnt_succ_flag = false;
-        // [00:06:02] es_voice_fishing_deduplicate_vector_index static index start
-        // [00:06:03] es_voice_fishing_deduplicate_vector_index static index data collecting start
-        // [00:06:05] es_voice_fishing_deduplicate_vector_index static index worked (3,475) - elapsed time : 00:00:01
-
+        
+        let mut index_succ_flag = false;/* 색인 완전 실패 유무 */
+        let mut cnt_succ_flag = false;  /* 색인 부분 실패 유무 -> 건수가 지정값 미만인 경우 */   
+        let mut indexing_cnt_num: usize = 0;  /* 색인된 문서 수 */  
+        
         for vector_index_log in vector_index_logs {
             let log_message = vector_index_log.message();
             
-
+            /* 정상적으로 색인이 되었을 경우에는 `index worked` 라는 문자열이 포함되어 있다. */
             if log_message.contains("index worked") {
-                succ_flag = true;
+                index_succ_flag = true;
             }
-            println!("{}", log_message);
-
+            
+            let regex = Regex::new(r"\((.*?)\)")?;
+            
+            if let Some(caps) = regex.captures(log_message) {       
+                
+                let indexing_cnt = match caps.get(0) {
+                    Some(indexing_cnt) => indexing_cnt.as_str(),
+                    None => "(0)"
+                };
+                
+                let caps_trim = &indexing_cnt[1..indexing_cnt.len() - 1];
+                
+                let indexing_cnt_replace = caps_trim.replace(",", "");
+                indexing_cnt_num = indexing_cnt_replace.parse()?;
+                
+                /* 지정한 색인 문서 수 이상인 경우는 색인에 문제없다고 판단함. */
+                if indexing_cnt_num >= index_schedule_info.size {
+                    cnt_succ_flag = true;
+                }
+            }
         }
         
-        println!("flag: {}", succ_flag);
-        // 문제 있는경우 없는경우 나눠서 알람 보내주기 & 로깅
-        
-        //println!("{:?}", index_schedule);
+        if !index_succ_flag {
 
-        /* 확인이 필요한 색인될 인덱스 정보들 */
-        // let index_schdules: IndexSchedulesConfig = read_toml_from_file::<IndexSchedulesConfig>("./config/index_list.toml")?;
-        
-        //println!("{:?}", self.index_storage_service.get_index_schedule_vec());
-        //let index_name = self.index_storage_service.get_index_name();
-        //info!("{}", index_name);
+            /* 색인 자체가 실패가 난 경우. */ 
+            /* 1. Telegram 으로 실패건 전송 */ 
+            self.telegram_service.send_indexing_total_failed_msg(index_schedule_info.index_name()).await?;
+            
+            /* 2. email 로 실패건 전송 */ 
+            let send_email_form: EmailStruct = EmailStruct::new(
+                index_schedule_info.index_name(),
+                indexing_cnt_num, 
+                index_schedule_info.size)?;
+            
+            self.smtp_service.send_message_to_receivers("[Elasticsearch] Indexing ERROR Alarm", 
+                send_email_form, "alba-elastic").await?;
+            
+            info!("Indexing Error: {:?}", index_schedule_info);
+            
+        } else if !cnt_succ_flag {
+            
+            /* 색인은 성공했지만, 색인 개수가 올바르지 않은 경우. */ 
+            /* 1. Telegram 으로 실패건 전송 */ 
+            self.telegram_service.send_indexing_cnt_failed_msg(
+                index_schedule_info.index_name(),
+                indexing_cnt_num,
+                index_schedule_info.size
+            ).await?;
+            
+            
+            /* 2. email 로 실패건 전송 */ 
+            let send_email_form: EmailStruct = EmailStruct::new(
+                index_schedule_info.index_name(), 
+                indexing_cnt_num, 
+                index_schedule_info.size)?;
+            
+            self.smtp_service.send_message_to_receivers("[Elasticsearch] Indexing ERROR Alarm", 
+                send_email_form, "alba-elastic").await?;
+
+            info!("Indexing Error: {:?}", index_schedule_info);
+        } else {
+
+            /* 색인에 문제가 없는 경우 */
+            info!("{} index completed.: {:?}", index_schedule_info.index_name(), index_schedule_info);
+        }
         
         Ok(())
     }
-    
 }

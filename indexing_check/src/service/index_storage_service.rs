@@ -5,10 +5,7 @@ use crate::model::IndexSchedulesConfig::*;
 
 #[async_trait]
 pub trait IndexStorageService {
-
-    fn get_index_name(&self) -> String;
     fn get_index_schedule_info(&self) -> IndexSchedules;
-
 }
 
 #[derive(Debug, Getters, new)]
@@ -21,13 +18,7 @@ pub struct IndexStorageServicePub {
 #[async_trait]
 impl IndexStorageService for IndexStorageServicePub {
 
-    fn get_index_name(&self) -> String {
-        let index_schedule  = &self.index_schedule;
-        index_schedule.index_name.clone()
-    }
-
-
-    #[doc = ""]
+     #[doc = "index_schedule 의 정보를 반환해주는 함수"]
     fn get_index_schedule_info(&self) -> IndexSchedules {
         self.index_schedule.clone()
     }

@@ -2,34 +2,20 @@ pub use std::{
     sync::{ 
         Arc, 
         Mutex, 
-        mpsc::channel,
-        RwLock,
-        RwLockReadGuard,
-        RwLockWriteGuard
     },
-    collections::{HashMap, VecDeque},
-    fs, 
-    path::{ Path, PathBuf },
+    collections::VecDeque,
     fs::File,
     io::{ BufReader, Write, Read },
-    task::{ Context, Poll },
     str::FromStr
 };
 
 pub use derive_new::new;
 
-pub use reqwest::{ 
-    Client, 
-    Body
-};
-
 pub use tokio::{
     io::AsyncReadExt,
-    task,
     time::sleep, 
     time::Duration
 }; 
-
 
 
 pub use getset::Getters;
@@ -46,7 +32,7 @@ pub use serde_json::{Value, from_reader, json};
 
 pub use async_trait::async_trait;
 
-pub use log::{info, error, warn};
+pub use log::{info, error};
 
 pub use flexi_logger::{
     Logger, 
@@ -59,36 +45,9 @@ pub use flexi_logger::{
 };
 
 
-pub use actix_web::{
-    web, 
-    App, 
-    HttpServer, 
-    HttpResponse,
-    dev::{ ServiceRequest, ServiceResponse, Transform, Service },
-    Error
-};
-
-
-pub use hotwatch::{
-    Hotwatch, 
-    Event, 
-    EventKind as WatchEventKind
-};
-
-
-pub use sha2::{
-    Sha256, 
-    Digest
-};
-
-
 pub use futures::{
     stream::TryStreamExt,
     future::join_all,
-    future::{
-        Ready as FuterReady,
-        ok
-    },
     Future
 };
 
@@ -98,7 +57,6 @@ pub use once_cell::sync::Lazy as once_lazy;
 
 pub use elasticsearch::{
     Elasticsearch, 
-    DeleteByQueryParts,
     http::transport::{ SingleNodeConnectionPool, TransportBuilder},
     http::Url,
     http::response::Response,
@@ -136,6 +94,10 @@ pub use chrono::{
 
 pub use chrono_tz::Asia::Seoul;
 
-pub use toml::from_str;
+//pub use toml::from_str;
 
 pub use cron::Schedule;
+
+pub use regex::Regex;
+
+pub use num_format::{Locale, ToFormattedString};

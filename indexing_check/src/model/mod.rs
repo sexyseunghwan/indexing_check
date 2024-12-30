@@ -6,3 +6,4 @@ pub mod EmailStruct;
 pub mod Config;
 pub mod TelegramConfig;
 pub mod VectorIndexLog;
+pub mod SystemConfig;

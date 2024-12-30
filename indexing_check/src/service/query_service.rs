@@ -9,7 +9,8 @@ use crate::model::VectorIndexLog::*;
 #[async_trait]
 pub trait QueryService {
 
-    async fn get_indexing_movement_log(&self, query_index: &str, index_name: &str, index_type: &str, start_dt: NaiveDateTime, end_dt: NaiveDateTime) -> Result<Vec<VectorIndexLog>, anyhow::Error>;
+    async fn get_indexing_movement_log(&self, query_index: &str, index_name: &str, index_type: &str, start_dt: NaiveDateTime, end_dt: NaiveDateTime) 
+        -> Result<Vec<VectorIndexLog>, anyhow::Error>;
 
 }
 
@@ -20,12 +21,23 @@ pub struct QueryServicePub {}
 #[async_trait]
 impl QueryService for QueryServicePub {
 
-    async fn get_indexing_movement_log(&self, query_index: &str, index_name: &str, index_type: &str, start_dt: NaiveDateTime, end_dt: NaiveDateTime) -> Result<Vec<VectorIndexLog>, anyhow::Error> {
-
-        //let start_dt_str = get_str_from_naive_datetime(start_dt, "%Y-%m-%dT%H:%M:%SZ")?;
-        //let end_dt_str = get_str_from_naive_datetime(end_dt, "%Y-%m-%dT%H:%M:%SZ")?;
-        let start_dt_str = "2024-12-24T00:00:00Z"; // for test
-        let end_dt_str = "2024-12-24T23:59:59Z"; // for test
+    #[doc = ""]
+    /// # Arguments
+    /// * `query_index` - 쿼리의 대상이 되는 Elasticsearch 인덱스 이름
+    /// * `index_name`  - 색인될 인덱스의 이름
+    /// * `index_type`  - 정적색인인지 동적색인인지 구분하는 타입
+    /// * `start_dt`    - 색인 시작 시각
+    /// * `end_dt`      - 색인 종료 시각
+    /// 
+    /// # Returns
+    /// * Result<Vec<VectorIndexLog>, anyhow::Error>
+    async fn get_indexing_movement_log(&self, query_index: &str, index_name: &str, index_type: &str, start_dt: NaiveDateTime, end_dt: NaiveDateTime) 
+        -> Result<Vec<VectorIndexLog>, anyhow::Error> {
+        
+        let start_dt_str = get_str_from_naive_datetime(start_dt, "%Y-%m-%dT%H:%M:%SZ")?;
+        let end_dt_str = get_str_from_naive_datetime(end_dt, "%Y-%m-%dT%H:%M:%SZ")?;
+        //let start_dt_str = "2024-12-24T00:00:00Z"; // for test
+        //let end_dt_str = "2024-12-24T23:59:59Z"; // for test
         
         let query = json!({
             "query": {
@@ -53,6 +65,8 @@ impl QueryService for QueryServicePub {
                 }
             }
         });
+        
+        info!("query: {:?}", query);
         
         let es_client = get_elastic_conn()?;
         let response_body = es_client.get_search_query(&query, query_index).await?;

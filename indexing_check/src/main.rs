@@ -83,7 +83,7 @@ async fn main_schedule_task(index_schedule: IndexSchedules) -> Result<(), anyhow
 #[tokio::main]
 async fn main() {
     
-    /* 전역 로거설정 */
+    /* 전역 로거설정~~ */
     set_global_logger();
 
     info!("Program start!");

@@ -1,6 +1,5 @@
 use crate::common::*;
 
-
 #[derive(Debug, Deserialize, Serialize, Getters, Clone)]
 #[getset(get = "pub")]
 pub struct IndexSchedules {
@@ -8,11 +7,11 @@ pub struct IndexSchedules {
     pub time: String,
     pub duration: i64,
     pub size: usize,
-    pub indexing_type: String 
+    pub indexing_type: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Getters, Clone)]
 #[getset(get = "pub")]
 pub struct IndexSchedulesConfig {
-    pub index: Vec<IndexSchedules>
+    pub index: Vec<IndexSchedules>,
 }

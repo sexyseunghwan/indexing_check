@@ -1,146 +1,178 @@
 use crate::common::*;
 
-use crate::model::EmailStruct::*;
-use crate::service::smtp_service::*;
-use crate::service::query_service::*;
+use crate::model::error_alarm_info::*;
 use crate::service::index_storage_service::*;
+use crate::service::query_service::*;
+use crate::service::smtp_service::*;
 use crate::service::telegram_service::*;
 
-use crate::model::IndexSchedulesConfig::*;
-use crate::model::VectorIndexLog::*;
-use crate::model::Config::*;
+use crate::model::code_config::*;
+use crate::model::index_schedules_config::*;
+use crate::model::system_config::*;
+use crate::model::total_config::*;
+use crate::model::vector_index_log::*;
 
 use crate::utils_modules::time_utils::*;
 
-
-pub struct MainHandler<S: SmtpService, Q: QueryService, I: IndexStorageService, T: TelegramService> {
+pub struct MainHandler<S: SmtpService, Q: QueryService, I: IndexStorageService, T: TelegramService>
+{
     smtp_service: S,
     query_service: Q,
     index_storage_service: I,
-    telegram_service: T
+    telegram_service: T,
 }
 
-
-impl<S: SmtpService, Q: QueryService, I: IndexStorageService, T: TelegramService> MainHandler<S, Q, I, T> {
-    
-    pub fn new(smtp_service: S, query_service: Q, index_storage_service: I, telegram_service: T) -> Self {
+impl<S: SmtpService, Q: QueryService, I: IndexStorageService, T: TelegramService>
+    MainHandler<S, Q, I, T>
+{
+    pub fn new(
+        smtp_service: S,
+        query_service: Q,
+        index_storage_service: I,
+        telegram_service: T,
+    ) -> Self {
         Self {
             smtp_service,
             query_service,
             index_storage_service,
-            telegram_service
+            telegram_service,
         }
     }
-    
 
     #[doc = "인덱스 정적 색인 작업 확인 함수"]
     pub async fn main_task(&self) -> Result<(), anyhow::Error> {
-        
-        // 탐색할 인덱스 이름을 가져온다 -> UTC 시간 기준으로 이름이 맵핑된다.
-        // ==== Prod ====
-        let curr_date_utc = get_current_utc_naivedate_str("%Y-%m-%d")?;
-        let search_index = get_system_config_info();
-        let search_index_name = format!("{}-{}", search_index.log_index_name(), curr_date_utc);
-        // ==== Prod ====
-        
-        // ==== DEV ====
-        //let search_index_name = String::from("vector-indexing-logs-2024-12-24"); // for test
-        // ==== DEV ====
-        
-        /* 인덱스 스케쥴 정보 */ 
-        let index_schedule_info: IndexSchedules = self.index_storage_service.get_index_schedule_info();
-        
-        /* 현재시간 */ 
+        /* 탐색할 인덱스 이름을 가져온다 -> UTC 시간 기준으로 이름이 맵핑된다. */
+        let code_config: Arc<CodeConfig> = get_code_config_info();
+
+        let search_index_name: String = if code_config.code_type() == "prod" {
+            let curr_date_utc: String = get_current_utc_naivedate_str("%Y-%m-%d")?;
+            let search_index: Arc<SystemConfig> = get_system_config_info();
+            format!("{}-{}", search_index.log_index_name(), curr_date_utc)
+        } else {
+            String::from("vector-indexing-logs-2025-01-08")
+        };
+
+        /* 인덱스 스케쥴 정보 */
+        let index_schedule_info: IndexSchedules =
+            self.index_storage_service.get_index_schedule_info();
+
+        /* 현재시간 */
         let curr_time_utc: NaiveDateTime = get_currnet_utc_naivedatetime();
         /* 색인 동작시간 */
-        let time_minutes_ago: NaiveDateTime = curr_time_utc - chrono::Duration::seconds(index_schedule_info.duration); 
-        
-        /* 색인 로그 확인 -> ES 쿼리 */ 
-        let vector_index_logs: Vec<VectorIndexLog> = self.query_service.get_indexing_movement_log(
-            &search_index_name, 
-            index_schedule_info.index_name(), 
-            index_schedule_info.indexing_type(), 
-            time_minutes_ago, 
-            curr_time_utc).await?;
-        
-        
-        let mut index_succ_flag = false;/* 색인 완전 실패 유무 */
-        let mut cnt_succ_flag = false;  /* 색인 부분 실패 유무 -> 건수가 지정값 미만인 경우 */   
-        let mut indexing_cnt_num: usize = 0;  /* 색인된 문서 수 */  
-        
+        let time_minutes_ago: NaiveDateTime =
+            curr_time_utc - chrono::Duration::seconds(index_schedule_info.duration);
+
+        /* 색인 로그 확인 -> ES 쿼리 */
+        let vector_index_logs: Vec<VectorIndexLog> = self
+            .query_service
+            .get_indexing_movement_log(
+                &search_index_name,
+                index_schedule_info.index_name(),
+                index_schedule_info.indexing_type(),
+                time_minutes_ago,
+                curr_time_utc,
+            )
+            .await?;
+
+        let mut index_succ_flag: bool = false; /* 색인 완전 실패 유무 */
+        let mut cnt_succ_flag: bool = false; /* 색인 부분 실패 유무 -> 건수가 지정값 미만인 경우 */
+        let mut indexing_cnt_num: usize = 0; /* 색인된 문서 수 -> 기본적으로는 0개 */
+
         for vector_index_log in vector_index_logs {
-            let log_message = vector_index_log.message();
-            
+            let log_message: &String = vector_index_log.message();
+
             /* 정상적으로 색인이 되었을 경우에는 `index worked` 라는 문자열이 포함되어 있다. */
             if log_message.contains("index worked") {
                 index_succ_flag = true;
             }
-            
-            let regex = Regex::new(r"\((.*?)\)")?;
-            
-            if let Some(caps) = regex.captures(log_message) {       
-                
+
+            let regex: Regex = Regex::new(r"\((.*?)\)")?;
+
+            if let Some(caps) = regex.captures(log_message) {
                 let indexing_cnt = match caps.get(0) {
                     Some(indexing_cnt) => indexing_cnt.as_str(),
-                    None => "(0)"
+                    None => "(0)",
                 };
-                
-                let caps_trim = &indexing_cnt[1..indexing_cnt.len() - 1];
-                
+
+                let caps_trim: &str = &indexing_cnt[1..indexing_cnt.len() - 1];
+
                 let indexing_cnt_replace = caps_trim.replace(",", "");
                 indexing_cnt_num = indexing_cnt_replace.parse()?;
-                
+
                 /* 지정한 색인 문서 수 이상인 경우는 색인에 문제없다고 판단함. */
                 if indexing_cnt_num >= index_schedule_info.size {
                     cnt_succ_flag = true;
                 }
             }
         }
-        
+
+        let system_config: Arc<SystemConfig> = get_system_config_info();
+        let err_monitor_index: String = system_config.err_monitor_index().to_string();
+
         if !index_succ_flag {
-
-            /* 색인 자체가 실패가 난 경우. */ 
-            /* 1. Telegram 으로 실패건 전송 */ 
-            self.telegram_service.send_indexing_total_failed_msg(index_schedule_info.index_name()).await?;
-            
-            /* 2. email 로 실패건 전송 */ 
-            let send_email_form: EmailStruct = EmailStruct::new(
-                index_schedule_info.index_name(),
-                indexing_cnt_num, 
-                index_schedule_info.size)?;
-            
-            self.smtp_service.send_message_to_receivers("[Elasticsearch] Indexing ERROR Alarm", 
-                send_email_form, "alba-elastic").await?;
-            
-            info!("Indexing Error: {:?}", index_schedule_info);
-            
-        } else if !cnt_succ_flag {
-            
-            /* 색인은 성공했지만, 색인 개수가 올바르지 않은 경우. */ 
-            /* 1. Telegram 으로 실패건 전송 */ 
-            self.telegram_service.send_indexing_cnt_failed_msg(
-                index_schedule_info.index_name(),
+            /* 색인 자체가 실패가 난 경우. */
+            let mut error_alarm_info: ErrorAlarmInfo = ErrorAlarmInfo::new(
+                String::from(""),
+                String::from("Full Error"),
+                index_schedule_info.index_name().to_string(),
+                index_schedule_info.indexing_type().to_string(),
                 indexing_cnt_num,
-                index_schedule_info.size
-            ).await?;
-            
-            
-            /* 2. email 로 실패건 전송 */ 
-            let send_email_form: EmailStruct = EmailStruct::new(
-                index_schedule_info.index_name(), 
-                indexing_cnt_num, 
-                index_schedule_info.size)?;
-            
-            self.smtp_service.send_message_to_receivers("[Elasticsearch] Indexing ERROR Alarm", 
-                send_email_form, "alba-elastic").await?;
+                *index_schedule_info.size(),
+            );
 
-            info!("Indexing Error: {:?}", index_schedule_info);
+            /* Elasticsearch 로그 인덱스로 실패건 전송 */
+            self.query_service
+                .post_indexing_error_info(&err_monitor_index, &mut error_alarm_info)
+                .await?;
+        } else if !cnt_succ_flag {
+            /* 색인은 성공했지만, 색인 개수가 올바르지 않은 경우. */
+            let mut error_alarm_info: ErrorAlarmInfo = ErrorAlarmInfo::new(
+                String::from(""),
+                String::from("Partial Error"),
+                index_schedule_info.index_name().to_string(),
+                index_schedule_info.indexing_type().to_string(),
+                indexing_cnt_num,
+                *index_schedule_info.size(),
+            );
+
+            /* Elasticsearch 로그 인덱스로 실패건 전송 */
+            self.query_service
+                .post_indexing_error_info(&err_monitor_index, &mut error_alarm_info)
+                .await?;
         } else {
-
             /* 색인에 문제가 없는 경우 */
-            info!("{} index completed.: {:?}", index_schedule_info.index_name(), index_schedule_info);
+            info!(
+                "{} index completed.: {:?}",
+                index_schedule_info.index_name(),
+                index_schedule_info
+            );
         }
-        
+
+        Ok(())
+    }
+
+    #[doc = "알람관련 로직을 실행하는 함수 -> Telegram 메시지 발송 및 이메일 발송"]
+    pub async fn alarm_task(&self) -> Result<(), anyhow::Error> {
+        let system_config: Arc<SystemConfig> = get_system_config_info();
+        let err_monitor_index: String = system_config.err_monitor_index().to_string();
+
+        /* Error 관련 인덱스를 조회한다. */
+        let error_alaram_infos: Vec<ErrorAlarmInfo> = self
+            .query_service
+            .get_error_alarm_infos(&err_monitor_index)
+            .await?;
+
+        /* Telegram && 이메일 알람 전송*/
+        /* 1. Telegram 전송 */
+        self.telegram_service
+            .send_indexing_failed_msg(&error_alaram_infos)
+            .await?;
+
+        /* 2. Email 전송 */
+        self.smtp_service
+            .send_message_to_receivers(&error_alaram_infos)
+            .await?;
+
         Ok(())
     }
 }

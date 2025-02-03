@@ -4,5 +4,5 @@ use crate::common::*;
 #[getset(get = "pub")]
 pub struct TelegramConfig {
     pub bot_token: String,
-    pub chat_room_id: String
+    pub chat_room_id: String,
 }

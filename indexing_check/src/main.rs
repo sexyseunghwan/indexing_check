@@ -111,12 +111,8 @@ async fn main_schedule_task(index_schedule: IndexSchedules) -> Result<(), anyhow
 
 #[tokio::main]
 async fn main() {
-<<<<<<< Updated upstream
-    
-    /* 전역 로거설정~~ */
-=======
+
     /* 전역 로거설정 */
->>>>>>> Stashed changes
     set_global_logger();
 
     info!("Program start!");

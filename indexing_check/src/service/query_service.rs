@@ -5,7 +5,7 @@ use crate::repository::es_repository::*;
 use crate::utils_modules::time_utils::*;
 
 use crate::model::error_alarm_info::*;
-use crate::model::vectorIndex_log::*;
+use crate::model::vector_index_log::*;
 
 #[async_trait]
 pub trait QueryService {

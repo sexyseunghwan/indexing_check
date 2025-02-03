@@ -16,7 +16,7 @@ static SERVER_CONFIG: once_lazy<Arc<Config>> =
 #[doc = "Function to initialize System configuration information instances"]
 pub fn initialize_server_config() -> Config {
     info!("initialize_server_config() START!");
-
+    
     let system_config: Config = Config::new();
     system_config
 }

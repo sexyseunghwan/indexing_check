@@ -1,6 +1,6 @@
 pub mod code_config;
 pub mod elastic_server_config;
-pub mod email_struct;
+//pub mod email_struct;
 pub mod error_alarm_info;
 pub mod index_schedules_config;
 pub mod receiver_emai_config;

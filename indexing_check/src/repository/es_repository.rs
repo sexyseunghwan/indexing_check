@@ -13,13 +13,6 @@ static ELASTICSEARCH_CONN_POOL: once_lazy<Arc<Mutex<VecDeque<EsRepositoryPub>>>>
 pub fn initialize_elastic_clients() -> VecDeque<EsRepositoryPub> {
     info!("initialize_elastic_clients() START!");
 
-    // let config: ElasticServerConfig = match read_toml_from_file::<ElasticServerConfig>("./config/elastic_config.toml") {
-    //     Ok(config) => config,
-    //     Err(e) => {
-    //         error!("[Error][initialize_elastic_clients()] The config file could not be found. : {:?}", e);
-    //         panic!("{:?}", e)
-    //     }
-    // };
     let config: Arc<ElasticServerConfig> = get_elasticsearch_config_info();
 
     /* Number of Elasticsearch connection pool */

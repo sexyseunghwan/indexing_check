@@ -17,7 +17,7 @@ pub trait SmtpService {
         email_id: &str,
         subject: &str,
         html_content: &str,
-    ) -> Result<(), anyhow::Error>;
+    ) -> Result<String, anyhow::Error>;
     async fn send_message_to_receivers(
         &self,
         error_alarm_infos: &Vec<ErrorAlarmInfo>,
@@ -69,10 +69,10 @@ impl SmtpService for SmtpServicePub {
         email_id: &str,
         subject: &str,
         html_content: &str,
-    ) -> Result<(), anyhow::Error> {
-        let smtp_config_info = get_smtp_config_info();
+    ) -> Result<String, anyhow::Error> {
+        let smtp_config_info: Arc<SmtpConfig> = get_smtp_config_info();
 
-        let email = Message::builder()
+        let email: Message = Message::builder()
             .from(smtp_config_info.credential_id.parse()?)
             .to(email_id.parse().unwrap())
             .subject(subject)
@@ -92,7 +92,7 @@ impl SmtpService for SmtpServicePub {
         .build();
 
         match mailer.send(email).await {
-            Ok(_) => Ok(()),
+            Ok(_) => Ok(email_id.to_string()),
             Err(e) => Err(anyhow!("{:?} : Failed to send email to {} ", e, email_id)),
         }
     }
@@ -117,7 +117,7 @@ impl SmtpService for SmtpServicePub {
         let email_subject: String = String::from("[Elasticsearch] Indexing ERROR Alarm");
         let mut inner_template: String = String::from("");
         let html_template: String = fs::read_to_string(Path::new(HTML_TEMPLATE_PATH.as_str()))?;
-        
+
         for err_info in error_alarm_infos {
             let err_info_tag: String = err_info.convert_email_struct()?;
             inner_template.push_str(&err_info_tag);
@@ -134,11 +134,11 @@ impl SmtpService for SmtpServicePub {
                 self.send_message_to_receiver_html(email_id.as_str(), &email_subject, &html_content)
             });
 
-            let results: Vec<Result<(), anyhow::Error>> = join_all(tasks).await;
+            let results: Vec<Result<String, anyhow::Error>> = join_all(tasks).await;
 
             for result in results {
                 match result {
-                    Ok(_) => info!("Email sent successfully"),
+                    Ok(succ_email_id) => info!("Email sent successfully: {}", succ_email_id),
                     Err(e) => error!(
                         "[Error][send_message_to_receivers()] Failed to send email: {:?}",
                         e

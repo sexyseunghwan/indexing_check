@@ -38,14 +38,13 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
         &self,
         index_schedule: IndexSchedules,
     ) -> Result<(), anyhow::Error> {
-
         let schedule: Schedule =
             Schedule::from_str(&index_schedule.time).expect("Failed to parse CRON expression");
         let schedule_term: Arc<SystemConfig> = get_system_config_info();
         let mut interval: Interval = tokio::time::interval(tokio::time::Duration::from_millis(
             schedule_term.schedule_term,
         ));
-        
+
         /* 한국 표준시 GMT + 9 */
         let kst_offset: FixedOffset = match FixedOffset::east_opt(9 * 3600) {
             Some(kst_offset) => kst_offset,
@@ -58,16 +57,14 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
                 );
             }
         };
-        
+
         loop {
-            
             interval.tick().await;
 
             let now: DateTime<Utc> = Utc::now();
             let kst_now: DateTime<FixedOffset> = now.with_timezone(&kst_offset); /* Converting UTC Current Time to KST */
 
             if let Some(next) = schedule.upcoming(kst_offset).take(1).next() {
-                info!("{:?}", next);
                 if (next - kst_now).num_seconds() < 1 {
                     match self.main_task(index_schedule.clone()).await {
                         Ok(_) => (),
@@ -79,7 +76,6 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
             }
         }
     }
-    
 
     #[doc = "인덱스 정적 색인 작업 확인 함수"]
     /// # Arguments
@@ -88,7 +84,6 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
     /// # Returns
     /// * Result<(), anyhow::Error>
     pub async fn main_task(&self, index_schedule: IndexSchedules) -> Result<(), anyhow::Error> {
-        
         info!("main task start");
         /* 탐색할 인덱스 이름을 가져온다 -> UTC 시간 기준으로 이름이 맵핑된다. */
         let code_config: Arc<CodeConfig> = get_code_config_info();
@@ -195,12 +190,11 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
 
         Ok(())
     }
-    
+
     #[doc = "알람관련 로직을 실행하는 함수 -> Telegram 메시지 발송 및 이메일 발송"]
     pub async fn alarm_task(&self) -> Result<(), anyhow::Error> {
-        
         info!("alarm task start");
-        
+
         let system_config: Arc<SystemConfig> = get_system_config_info();
         let err_monitor_index: String = system_config.err_monitor_index().to_string();
 

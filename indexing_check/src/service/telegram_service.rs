@@ -84,12 +84,11 @@ impl TelegramService for TelegramServicePub {
             " index name: {}\n",
             error_alaram_info.index_name()
         ));
-        
+
         send_msg.push_str(&format!(
             "   - indexing type: {}\n",
             error_alaram_info.index_type()
         ));
-
 
         let key_name: String = if error_alaram_info.error_type() == "Full Error" {
             String::from("Full Error")

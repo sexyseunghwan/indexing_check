@@ -122,7 +122,7 @@ impl QueryService for QueryServicePub {
             }
         });
 
-        let es_client: EsRepositoryPub = get_elastic_conn()?;
+        let es_client: EsRepositoryPub = get_elastic_conn().await?;
         let response_body: Value = es_client.get_search_query(&query, query_index).await?;
 
         let result: Vec<VectorIndexLog> = self
@@ -143,7 +143,7 @@ impl QueryService for QueryServicePub {
         index_name: &str,
         error_alaram_info: &mut ErrorAlarmInfo,
     ) -> Result<(), anyhow::Error> {
-        let es_client: EsRepositoryPub = get_elastic_conn()?;
+        let es_client: EsRepositoryPub = get_elastic_conn().await?;
 
         let cur_kor_time: NaiveDateTime = get_current_kor_naive_datetime();
         let cur_kor_time_str: String =
@@ -168,7 +168,7 @@ impl QueryService for QueryServicePub {
         &self,
         index_name: &str,
     ) -> Result<Vec<ErrorAlarmInfo>, anyhow::Error> {
-        let es_client: EsRepositoryPub = get_elastic_conn()?;
+        let es_client: EsRepositoryPub = get_elastic_conn().await?;
 
         let query: Value = json!({
             "query": {
@@ -176,7 +176,7 @@ impl QueryService for QueryServicePub {
             },
             "size": 1000
         });
-        
+
         let response_body: Value = es_client.get_search_query(&query, index_name).await?;
         let err_alram_infos: Vec<ErrorAlarmInfo> = self
             .get_query_result_vec::<ErrorAlarmInfo>(&response_body)

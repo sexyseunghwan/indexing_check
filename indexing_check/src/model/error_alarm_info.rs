@@ -20,7 +20,7 @@ impl ErrorAlarmInfo {
         } else {
             "yellow"
         };
-        
+
         let html_form: String = format!(
             "<tr>
                 <td style='border: 1px solid #ddd; padding: 8px; text-align: left;'>{}</td>

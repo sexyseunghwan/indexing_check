@@ -45,21 +45,29 @@ pub fn initialize_elastic_clients() -> VecDeque<EsRepositoryPub> {
 }
 
 #[doc = "Function to get elasticsearch connection"]
-pub fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
-    let mut pool = match ELASTICSEARCH_CONN_POOL.lock() {
-        Ok(pool) => pool,
-        Err(e) => {
-            return Err(anyhow!("[Error][get_elastic_conn()] {:?}", e));
+pub async fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
+    let mut pool: MutexGuard<'_, VecDeque<EsRepositoryPub>> = ELASTICSEARCH_CONN_POOL
+        .lock()
+        .await;
+
+    /* Elasticsearch Connection 이 부족한 경우를 대비하여 대기 시간을 걸어준다. */
+    for try_cnt in 1..=100 {
+        if let Some(es_repo) = pool.pop_front() {
+            info!("Elasticsearch pool.len = {:?}", pool.len());
+            return Ok(es_repo);
         }
-    };
+        
+        warn!(
+            "[Attempt {}] The Elasticsearch connection pool does not have an idle connection.",
+            try_cnt
+        );
 
-    let es_repo: EsRepositoryPub = pool.pop_front().ok_or_else(|| {
-        anyhow!("[Error][get_elastic_conn()] Cannot Find Elasticsearch Connection")
-    })?;
-
-    info!("Elasticsearch pool.len = {:?}", pool.len());
-
-    Ok(es_repo)
+        tokio::time::sleep(Duration::from_secs(3)).await;
+    }
+    
+    return Err(anyhow!(
+        "[Error][get_elastic_conn()] Cannot Find Elasticsearch Connection"
+    ));
 }
 
 #[async_trait]
@@ -143,7 +151,7 @@ impl EsRepositoryPub {
 /* RAII pattern */
 impl Drop for EsRepositoryPub {
     fn drop(&mut self) {
-        match ELASTICSEARCH_CONN_POOL.lock() {
+        match ELASTICSEARCH_CONN_POOL.try_lock() {
             Ok(mut pool) => {
                 pool.push_back(self.clone());
             }

@@ -59,13 +59,13 @@ impl TelebotRepository for TelebotRepositoryPub {
             "text": send_msg
         });
 
-        let client = reqwest::Client::new();
+        let client: Client = Client::new();
 
         /* 최대 3번의 시도를 수행 */
         for try_cnt in 0..3 {
             match self.try_send(&client, &url, &body).await {
                 Ok(_) => {
-                    info!("Successfully sent message");
+                    info!("Successfully sent Telegram message");
                     return Ok(());
                 }
                 Err(err) => {

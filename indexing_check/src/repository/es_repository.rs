@@ -51,7 +51,7 @@ pub async fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
         .await;
 
     /* Elasticsearch Connection 이 부족한 경우를 대비하여 대기 시간을 걸어준다. */
-    for try_cnt in 1..=100 {
+    for try_cnt in 1..=3 {
         if let Some(es_repo) = pool.pop_front() {
             info!("Elasticsearch pool.len = {:?}", pool.len());
             return Ok(es_repo);
@@ -61,8 +61,8 @@ pub async fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
             "[Attempt {}] The Elasticsearch connection pool does not have an idle connection.",
             try_cnt
         );
-
-        tokio::time::sleep(Duration::from_secs(3)).await;
+        
+        tokio::time::sleep(Duration::from_secs(5)).await;
     }
     
     return Err(anyhow!(

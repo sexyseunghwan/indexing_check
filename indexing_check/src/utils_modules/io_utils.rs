@@ -1,4 +1,3 @@
-
 use crate::common::*;
 
 #[doc = "Json 파일을 읽어서 객체로 변환해주는 함수."]

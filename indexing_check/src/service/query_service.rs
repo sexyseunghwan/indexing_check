@@ -172,11 +172,11 @@ impl QueryService for QueryServicePub {
 
         let query: Value = json!({
             "query": {
-                "match_all": {},
-                "size": 1000
-            }
+                "match_all": {}
+            },
+            "size": 1000
         });
-
+        
         let response_body: Value = es_client.get_search_query(&query, index_name).await?;
         let err_alram_infos: Vec<ErrorAlarmInfo> = self
             .get_query_result_vec::<ErrorAlarmInfo>(&response_body)

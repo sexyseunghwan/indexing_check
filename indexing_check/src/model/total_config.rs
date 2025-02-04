@@ -16,7 +16,7 @@ static SERVER_CONFIG: once_lazy<Arc<Config>> =
 #[doc = "Function to initialize System configuration information instances"]
 pub fn initialize_server_config() -> Config {
     info!("initialize_server_config() START!");
-    
+
     let system_config: Config = Config::new();
     system_config
 }
@@ -71,20 +71,19 @@ pub struct ConfigNotSafe {
 
 impl Config {
     pub fn new() -> Self {
-        let system_config =
-            match read_toml_from_file::<ConfigNotSafe>(&SYSTEM_CONFIG_PATH) {
-                Ok(system_config) => system_config,
-                Err(e) => {
-                    error!(
-                        "[Error][main()] Failed to retrieve information 'system_config'. : {:?}",
-                        e
-                    );
-                    panic!(
-                        "[Error][main()] Failed to retrieve information 'system_config'. : {:?}",
-                        e
-                    );
-                }
-            };
+        let system_config = match read_toml_from_file::<ConfigNotSafe>(&SYSTEM_CONFIG_PATH) {
+            Ok(system_config) => system_config,
+            Err(e) => {
+                error!(
+                    "[Error][main()] Failed to retrieve information 'system_config'. : {:?}",
+                    e
+                );
+                panic!(
+                    "[Error][main()] Failed to retrieve information 'system_config'. : {:?}",
+                    e
+                );
+            }
+        };
 
         Config {
             elasticsearch: Arc::new(system_config.elasticsearch),

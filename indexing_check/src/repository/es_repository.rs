@@ -70,7 +70,7 @@ pub trait EsRepository {
         index_name: &str,
     ) -> Result<Value, anyhow::Error>;
     async fn post_query(&self, document: &Value, index_name: &str) -> Result<(), anyhow::Error>;
-    async fn delete_query(&self, doc_id: &str, index_name: &str) -> Result<(), anyhow::Error>;
+    //async fn delete_query(&self, doc_id: &str, index_name: &str) -> Result<(), anyhow::Error>;
 
     async fn post_query_struct<T: Serialize + Sync>(
         &self,
@@ -222,37 +222,37 @@ impl EsRepository for EsRepositoryPub {
         }
     }
 
-    #[doc = "Function that EXECUTES elasticsearch queries - delete"]
-    async fn delete_query(&self, doc_id: &str, index_name: &str) -> Result<(), anyhow::Error> {
-        let response = self
-            .execute_on_any_node(|es_client| async move {
-                // let body = serde_json::json!({
-                //     "query": {
-                //         "ids": {
-                //             "values": [doc_id]
-                //         }
-                //     }
-                // });
+    // #[doc = "Function that EXECUTES elasticsearch queries - delete"]
+    // async fn delete_query(&self, doc_id: &str, index_name: &str) -> Result<(), anyhow::Error> {
+    //     let response = self
+    //         .execute_on_any_node(|es_client| async move {
+    //             // let body = serde_json::json!({
+    //             //     "query": {
+    //             //         "ids": {
+    //             //             "values": [doc_id]
+    //             //         }
+    //             //     }
+    //             // });
 
-                let response = es_client
-                    .es_conn
-                    //.delete_by_query(DeleteByQueryParts::Index(&[index_name]))
-                    //.body(body)
-                    .delete(DeleteParts::IndexId(index_name, doc_id))
-                    .send()
-                    .await?;
+    //             let response = es_client
+    //                 .es_conn
+    //                 //.delete_by_query(DeleteByQueryParts::Index(&[index_name]))
+    //                 //.body(body)
+    //                 .delete(DeleteParts::IndexId(index_name, doc_id))
+    //                 .send()
+    //                 .await?;
 
-                println!("{:?}", response);
+    //             println!("{:?}", response);
 
-                Ok(response)
-            })
-            .await?;
+    //             Ok(response)
+    //         })
+    //         .await?;
 
-        if response.status_code().is_success() {
-            Ok(())
-        } else {
-            let error_message = format!("[Elasticsearch Error][node_delete_query()] Failed to delete document: Status Code: {}, Document ID: {}", response.status_code(), doc_id);
-            Err(anyhow!(error_message))
-        }
-    }
+    //     if response.status_code().is_success() {
+    //         Ok(())
+    //     } else {
+    //         let error_message = format!("[Elasticsearch Error][node_delete_query()] Failed to delete document: Status Code: {}, Document ID: {}", response.status_code(), doc_id);
+    //         Err(anyhow!(error_message))
+    //     }
+    // }
 }

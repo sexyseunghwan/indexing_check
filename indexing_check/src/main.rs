@@ -68,7 +68,7 @@ async fn main() {
             }
         }
     });
-
+    
     /* 모니터링 대상이 되는 색인될 인덱스 정보들 */
     let index_schdules: IndexSchedulesConfig =
         match read_toml_from_file::<IndexSchedulesConfig>(&INDEX_LIST_PATH) {
@@ -78,12 +78,11 @@ async fn main() {
                 panic!("{:?}", e);
             }
         };
-
+    
     /* 각 인덱스 별로 모니터링을 비동기적으로 실시해준다. */
     for index in index_schdules.index {
         let index_clone: IndexSchedules = index.clone();
         let handler_arc_clone: Arc<MainHandler<SmtpServicePub, QueryServicePub, TelegramServicePub>> = Arc::clone(&handler_arc);
-
         tokio::spawn(async move {
             if let Err(e) = handler_arc_clone.main_schedule_task(index_clone).await {
                 error!("[Error][main_schedule_task] {:?}", e);
@@ -98,3 +97,8 @@ async fn main() {
         }
     }
 }
+
+// let smtp_service: SmtpServicePub = SmtpServicePub::new();
+// let query_service: QueryServicePub = QueryServicePub::new();
+// let telegram_service: TelegramServicePub = TelegramServicePub::new();
+// let main_handler = MainHandler::new(smtp_service, query_service, telegram_service);

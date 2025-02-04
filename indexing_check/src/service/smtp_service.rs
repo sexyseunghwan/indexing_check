@@ -116,8 +116,8 @@ impl SmtpService for SmtpServicePub {
 
         let email_subject: String = String::from("[Elasticsearch] Indexing ERROR Alarm");
         let mut inner_template: String = String::from("");
-        let html_template: String = std::fs::read_to_string("./html/view.html")?;
-
+        let html_template: String = fs::read_to_string(Path::new(HTML_TEMPLATE_PATH.as_str()))?;
+        
         for err_info in error_alarm_infos {
             let err_info_tag: String = err_info.convert_email_struct()?;
             inner_template.push_str(&err_info_tag);

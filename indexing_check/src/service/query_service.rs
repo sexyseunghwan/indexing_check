@@ -112,8 +112,8 @@ impl QueryService for QueryServicePub {
                         {
                             "range": {
                                 "timestamp": {
-                                "gte": start_dt_str,
-                                "lte": end_dt_str
+                                    "gte": start_dt_str,
+                                    "lte": end_dt_str
                                 }
                             }
                         }

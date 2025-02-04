@@ -20,15 +20,17 @@ impl ErrorAlarmInfo {
         } else {
             "yellow"
         };
-
+        
         let html_form: String = format!(
             "<tr>
                 <td style='border: 1px solid #ddd; padding: 8px; text-align: left;'>{}</td>
                 <td style='border: 1px solid #ddd; padding: 8px; text-align: left;'><span style='color: red;'>{}</span> ({})</td>
+                <td style='border: 1px solid #ddd; padding: 8px; text-align: left;'>{}</td>
                 <td style='border: 1px solid #ddd; padding: 8px; text-align: left; color: {};'>{}</td>
             </tr>",
             self.index_name, 
             self.indexing_cnt_num.to_formatted_string(&Locale::en), self.declare_index_size.to_formatted_string(&Locale::en),
+            self.index_type(),
             color, self.error_type
         );
 

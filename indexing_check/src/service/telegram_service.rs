@@ -81,15 +81,21 @@ impl TelegramService for TelegramServicePub {
     ) -> Result<(), anyhow::Error> {
         let mut send_msg: String = String::from("");
         send_msg.push_str(&format!(
-            " - index name: {}\n",
+            " index name: {}\n",
             error_alaram_info.index_name()
         ));
+        
+        send_msg.push_str(&format!(
+            "   - indexing type: {}\n",
+            error_alaram_info.index_type()
+        ));
+
 
         let key_name: String = if error_alaram_info.error_type() == "Full Error" {
             String::from("Full Error")
         } else {
             send_msg.push_str(&format!(
-                " - index cnt (declare cnt): {} ({})\n",
+                "   - index cnt (declare cnt): {} ({})\n",
                 error_alaram_info
                     .indexing_cnt_num
                     .to_formatted_string(&Locale::en),

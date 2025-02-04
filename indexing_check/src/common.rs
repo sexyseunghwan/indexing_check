@@ -5,6 +5,8 @@ pub use std::{
     io::{BufReader, Read, Write},
     str::FromStr,
     sync::{Arc, Mutex},
+    fs,
+    path::Path
 };
 
 pub use derive_new::new;

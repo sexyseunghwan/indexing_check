@@ -12,7 +12,7 @@ mod common;
 use common::*;
 
 mod utils_modules;
-use repository::es_repository::initialize_elastic_clients;
+
 use tokio::time;
 use utils_modules::io_utils::*;
 use utils_modules::logger_utils::*;
@@ -24,7 +24,7 @@ mod handler;
 use handler::main_handler::*;
 
 mod repository;
-use repository::es_repository::*;
+
 
 mod service;
 use service::query_service::*;
@@ -33,22 +33,6 @@ use service::telegram_service::*;
 
 mod env_configuration;
 use env_configuration::env_config::*;
-
-//#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
-// fn main() {
-//     let runtime: tokio::runtime::Runtime = tokio::runtime::Builder::new_multi_thread()
-//         .worker_threads(4) // 4개의 스레드 사용
-//         .thread_name_fn(|| {
-//             static ATOMIC_ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-//             let id = ATOMIC_ID.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-//             format!("custom-worker-{}", id) // 스레드 이름을 고유하게 설정
-//         })
-//         .enable_all()
-//         .build()
-//         .unwrap();
-
-//     runtime.block_on(async_main()); // 런타임 실행
-// }
 
 #[tokio::main]
 async fn main() {
@@ -70,7 +54,8 @@ async fn main() {
     
     let alarm_handler: Arc<MainHandler<SmtpServicePub, QueryServicePub, TelegramServicePub>> =
         Arc::clone(&handler_arc);
-
+    
+    /* 알람 테스크 */
     tokio::spawn(async move {
         let mut other_interval: Interval = time::interval(Duration::from_secs(15));
 
@@ -96,7 +81,10 @@ async fn main() {
             }
         };
     
-    /* 각 인덱스 별로 모니터링을 비동기적으로 실시해준다. */
+    /* 
+        각 인덱스 별로 모니터링을 비동기적으로 실시해준다.
+        스케쥴링 대기 작업 진행 
+    */
     for index in index_schdules.index {
         let index_clone: IndexSchedules = index.clone();
         
@@ -118,3 +106,20 @@ async fn main() {
         }
     }
 }
+
+
+//#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
+// fn main() {
+//     let runtime: tokio::runtime::Runtime = tokio::runtime::Builder::new_multi_thread()
+//         .worker_threads(4) // 4개의 스레드 사용
+//         .thread_name_fn(|| {
+//             static ATOMIC_ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+//             let id = ATOMIC_ID.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+//             format!("custom-worker-{}", id) // 스레드 이름을 고유하게 설정
+//         })
+//         .enable_all()
+//         .build()
+//         .unwrap();
+
+//     runtime.block_on(async_main()); // 런타임 실행
+// }

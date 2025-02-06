@@ -5,11 +5,10 @@ pub use std::{
     io::{BufReader, Read, Write},
     path::Path,
     str::FromStr,
-    sync::{Arc},
+    sync::Arc,
     ops::Deref
 };
 
-// Mutex, MutexGuard
 
 pub use derive_new::new;
 
@@ -21,13 +20,7 @@ pub use tokio::{
     time::{sleep, Duration, Interval},
     sync::{
         Mutex, 
-        MutexGuard, 
-        OnceCell, 
-        mpsc::{
-            self, 
-            Sender, 
-            Receiver 
-        }
+        MutexGuard
     }
 };
 
@@ -55,8 +48,7 @@ pub use elasticsearch::{
     http::response::Response,
     http::transport::{ConnectionPool, Transport as EsTransport},
     http::transport::{SingleNodeConnectionPool, TransportBuilder},
-    http::Url,
-    DeleteParts, Elasticsearch, IndexParts, SearchParts,
+    http::Url, Elasticsearch, IndexParts, SearchParts,
 };
 
 pub use rand::{prelude::SliceRandom, rngs::StdRng, SeedableRng};
@@ -70,8 +62,6 @@ pub use lettre::{
 pub use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc};
 
 pub use chrono_tz::Asia::Seoul;
-
-//pub use toml::from_str;
 
 pub use cron::Schedule;
 

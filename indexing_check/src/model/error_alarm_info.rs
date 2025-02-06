@@ -33,7 +33,7 @@ impl ErrorAlarmInfo {
             self.index_type(),
             color, self.error_type
         );
-
+        
         Ok(html_form)
     }
 }

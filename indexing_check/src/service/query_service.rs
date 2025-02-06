@@ -122,7 +122,6 @@ impl QueryService for QueryServicePub {
             }
         });
         
-        //let es_guard: ElasticConnGuard = ElasticConnGuard::new().await?;
         let es_client: ElasticConnGuard = get_elastic_guard_conn().await?;
         let response_body: Value = es_client.get_search_query(&query, query_index).await?;
 

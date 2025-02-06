@@ -5,6 +5,7 @@ use crate::utils_modules::io_utils::*;
 use crate::model::elastic_server_config::*;
 use crate::model::total_config::*;
 
+
 #[doc = "Elasticsearch connection object to be used in a single tone"]
 static ELASTICSEARCH_CONN_POOL: once_lazy<Arc<Mutex<VecDeque<EsRepositoryPub>>>> =
     once_lazy::new(|| Arc::new(Mutex::new(initialize_elastic_clients())));
@@ -45,15 +46,22 @@ pub fn initialize_elastic_clients() -> VecDeque<EsRepositoryPub> {
 }
 
 #[doc = "Function to get elasticsearch connection"]
-pub async fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
-    let mut pool: MutexGuard<'_, VecDeque<EsRepositoryPub>> = ELASTICSEARCH_CONN_POOL
-        .lock()
-        .await;
-
+async fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
+    
     /* Elasticsearch Connection 이 부족한 경우를 대비하여 대기 시간을 걸어준다. */
-    for try_cnt in 1..=3 {
-        if let Some(es_repo) = pool.pop_front() {
-            info!("Elasticsearch pool.len = {:?}", pool.len());
+    for try_cnt in 1..=10 {
+        
+        let es_repo: Option<EsRepositoryPub> = {
+            let mut pool: MutexGuard<'_, VecDeque<EsRepositoryPub>> = ELASTICSEARCH_CONN_POOL.lock().await;
+            
+            /* 여기서 pool.pop_front()가 실행된 후, pool은 스코프를 벗어나면서 자동 해제 */
+            let inner_pool: Option<EsRepositoryPub> = pool.pop_front();
+            info!("[connection get()] Elasticsearch pool.len = {:?}", pool.len());
+
+            inner_pool
+        };
+
+        if let Some(es_repo) = es_repo {
             return Ok(es_repo);
         }
         
@@ -62,13 +70,163 @@ pub async fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
             try_cnt
         );
         
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(Duration::from_secs(7)).await;
     }
     
     return Err(anyhow!(
         "[Error][get_elastic_conn()] Cannot Find Elasticsearch Connection"
     ));
 }
+
+#[doc = "Function to return Elasticsearch connection objects"]
+pub async fn release_elastic_conn(es_repo: EsRepositoryPub) {
+
+    let mut pool: MutexGuard<'_, VecDeque<EsRepositoryPub>> = ELASTICSEARCH_CONN_POOL
+        .lock()
+        .await;
+    
+    pool.push_back(es_repo);
+    info!("[connection return] Elasticsearch pool.len = {:?}", pool.len());
+}
+
+#[doc = "Functions that return Elasticsearch guard connections"]
+pub async fn get_elastic_guard_conn() -> Result<ElasticConnGuard, anyhow::Error> {
+    let es_guard: ElasticConnGuard = ElasticConnGuard::new().await?;
+
+    Ok(es_guard)
+}
+
+
+#[doc = "RAII Pattern: Guard to automatically return connections"]
+pub struct ElasticConnGuard {
+    es_repo: Option<EsRepositoryPub>,
+}
+
+impl ElasticConnGuard {
+    pub async fn new() -> Result<Self, anyhow::Error> {
+        let es_repo: EsRepositoryPub = get_elastic_conn().await?;
+        Ok(Self { es_repo: Some(es_repo) })
+    }
+}
+
+impl Deref for ElasticConnGuard {
+    type Target = EsRepositoryPub;
+    fn deref(&self) -> &Self::Target {
+        self.es_repo.as_ref().expect("[Error] Attempted to dereference an empty ElasticConnGuard")
+    }
+}
+
+impl Drop for ElasticConnGuard {
+    fn drop(&mut self) {
+        if let Some(es_repo) = self.es_repo.take() {
+            let _ = tokio::spawn(async move {
+                release_elastic_conn(es_repo).await;
+            });
+        }
+    }
+}
+
+
+// #[doc = "Elasticsearch connection pool (bounded channel)"]
+// static ELASTICSEARCH_CONN_POOL: OnceCell<Sender<EsRepositoryPub>> = OnceCell::new();
+
+// #[doc = "Initialize Elasticsearch connection instances"]
+// pub async fn initialize_elastic_clients() -> Receiver<EsRepositoryPub> {
+//     info!("initialize_elastic_clients() START!");
+    
+//     let config: Arc<ElasticServerConfig> = get_elasticsearch_config_info();
+
+//     let pool_cnt: usize = *config.elastic_pool_cnt() as usize;
+//     let es_host: &Vec<String> = config.elastic_host();
+//     let es_id: String = config.elastic_id().clone().unwrap_or_default();
+//     let es_pw: String = config.elastic_pw().clone().unwrap_or_default();
+    
+//     /* Create a bounded channel for connection pool */ 
+//     let (tx, rx) = mpsc::channel(pool_cnt);
+    
+//     for _ in 0..pool_cnt {
+//         let es_connection: EsRepositoryPub = match EsRepositoryPub::new(es_host.clone(), &es_id, &es_pw) {
+//             Ok(es_client) => es_client,
+//             Err(err) => {
+//                 error!(
+//                     "[DB Connection Error] Failed to create Elasticsearch client: {:?}",
+//                     err
+//                 );
+//                 panic!(
+//                     "[DB Connection Error] Failed to create Elasticsearch client: {:?}",
+//                     err
+//                 );
+//             }
+//         };
+        
+//         /* Send connection to the pool */ 
+//         tx.send(es_connection).await.expect("Failed to send connection to pool");
+//     }
+
+//     ELASTICSEARCH_CONN_POOL.set(tx).unwrap();
+//     rx /* Receiver는 호출하는 곳에서 관리 */
+// }
+
+// #[doc = "Function to get Elasticsearch connection"]
+// pub async fn get_elastic_conn(rx: &mut Receiver<EsRepositoryPub>) -> Result<EsRepositoryPub, anyhow::Error> {
+//     match rx.recv().await {
+//         Some(conn) => {
+//             info!("[connection get()] Elasticsearch pool received connection.");
+//             Ok(conn)
+//         }
+//         None => {
+//             error!("[Error][get_elastic_conn()] No available connection.");
+//             Err(anyhow!("[Error][get_elastic_conn()] Cannot Find Elasticsearch Connection"))
+//         }
+//     }
+// }
+
+// #[doc = "Function to return Elasticsearch connection"]
+// pub async fn release_elastic_conn(es_repo: EsRepositoryPub) {
+//     if let Some(tx) = ELASTICSEARCH_CONN_POOL.get() {
+//         if let Err(_) = tx.send(es_repo).await {
+//             error!("[Error][release_elastic_conn()] Failed to return connection to the pool.");
+//         } else {
+//             info!("[connection return] Connection returned to pool.");
+//         }
+//     }
+// }
+
+// #[doc = "Functions that return Elasticsearch guard connections"]
+// pub async fn get_elastic_guard_conn(rx: &mut Receiver<EsRepositoryPub>) -> Result<ElasticConnGuard, anyhow::Error> {
+//     let es_guard = ElasticConnGuard::new(rx).await?;
+//     Ok(es_guard)
+// }
+
+// #[doc = "RAII Pattern: Guard to automatically return connections"]
+// pub struct ElasticConnGuard {
+//     es_repo: Option<EsRepositoryPub>,
+// }
+
+// impl ElasticConnGuard {
+//     pub async fn new(rx: &mut Receiver<EsRepositoryPub>) -> Result<Self, anyhow::Error> {
+//         let es_repo = get_elastic_conn(rx).await?;
+//         Ok(Self { es_repo: Some(es_repo) })
+//     }
+// }
+
+// impl Deref for ElasticConnGuard {
+//     type Target = EsRepositoryPub;
+//     fn deref(&self) -> &Self::Target {
+//         self.es_repo.as_ref().expect("[Error] Attempted to dereference an empty ElasticConnGuard")
+//     }
+// }
+
+// impl Drop for ElasticConnGuard {
+//     fn drop(&mut self) {
+//         if let Some(es_repo) = self.es_repo.take() {
+//             let _ = tokio::spawn(async move {
+//                 release_elastic_conn(es_repo).await;
+//             });
+//         }
+//     }
+// }
+
 
 #[async_trait]
 pub trait EsRepository {
@@ -101,7 +259,7 @@ pub(crate) struct EsClient {
 impl EsRepositoryPub {
     pub fn new(es_url_vec: Vec<String>, es_id: &str, es_pw: &str) -> Result<Self, anyhow::Error> {
         let mut es_clients: Vec<EsClient> = Vec::new();
-
+        
         for url in es_url_vec {
             let parse_url: String = format!("http://{}:{}@{}", es_id, es_pw, url);
 
@@ -148,19 +306,19 @@ impl EsRepositoryPub {
     }
 }
 
-/* RAII pattern */
-impl Drop for EsRepositoryPub {
-    fn drop(&mut self) {
-        match ELASTICSEARCH_CONN_POOL.try_lock() {
-            Ok(mut pool) => {
-                pool.push_back(self.clone());
-            }
-            Err(e) => {
-                error!("[Error][EsRepositoryPub -> drop()] {:?}", e);
-            }
-        }
-    }
-}
+// /* RAII pattern */
+// impl Drop for EsRepositoryPub {
+//     fn drop(&mut self) {
+//         match ELASTICSEARCH_CONN_POOL.try_lock() {
+//             Ok(mut pool) => {
+//                 pool.push_back(self.clone());
+//             }
+//             Err(e) => {
+//                 error!("[Error][EsRepositoryPub -> drop()] {:?}", e);
+//             }
+//         }
+//     }
+// }
 
 #[async_trait]
 impl EsRepository for EsRepositoryPub {
@@ -184,10 +342,10 @@ impl EsRepository for EsRepositoryPub {
             .await?;
 
         if response.status_code().is_success() {
-            let response_body = response.json::<Value>().await?;
+            let response_body: Value = response.json::<Value>().await?;
             Ok(response_body)
         } else {
-            let error_body = response.text().await?;
+            let error_body: String = response.text().await?;
             Err(anyhow!(
                 "[Elasticsearch Error][node_search_query()] response status is failed: {:?}",
                 error_body

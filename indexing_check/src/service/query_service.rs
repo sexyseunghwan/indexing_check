@@ -92,10 +92,8 @@ impl QueryService for QueryServicePub {
     ) -> Result<Vec<VectorIndexLog>, anyhow::Error> {
         let start_dt_str: String = get_str_from_naive_datetime(start_dt, "%Y-%m-%dT%H:%M:%SZ")?;
         let end_dt_str: String = get_str_from_naive_datetime(end_dt, "%Y-%m-%dT%H:%M:%SZ")?;
-        //let start_dt_str = "2024-12-24T00:00:00Z"; // for test
-        //let end_dt_str = "2024-12-24T23:59:59Z"; // for test
 
-        let query = json!({
+        let query: Value = json!({
             "query": {
                 "bool": {
                     "must": [
@@ -121,14 +119,14 @@ impl QueryService for QueryServicePub {
                 }
             }
         });
-        
+
         let es_client: ElasticConnGuard = get_elastic_guard_conn().await?;
         let response_body: Value = es_client.get_search_query(&query, query_index).await?;
 
         let result: Vec<VectorIndexLog> = self
             .get_query_result_vec::<VectorIndexLog>(&response_body)
             .await?;
-        
+
         Ok(result)
     }
 
@@ -176,7 +174,7 @@ impl QueryService for QueryServicePub {
             },
             "size": 1000
         });
-        
+
         let response_body: Value = es_client.get_search_query(&query, index_name).await?;
         let err_alram_infos: Vec<ErrorAlarmInfo> = self
             .get_query_result_vec::<ErrorAlarmInfo>(&response_body)

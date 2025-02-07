@@ -5,7 +5,6 @@ use crate::utils_modules::io_utils::*;
 use crate::model::elastic_server_config::*;
 use crate::model::total_config::*;
 
-
 #[doc = "Elasticsearch connection object to be used in a single tone"]
 static ELASTICSEARCH_CONN_POOL: once_lazy<Arc<Mutex<VecDeque<EsRepositoryPub>>>> =
     once_lazy::new(|| Arc::new(Mutex::new(initialize_elastic_clients())));
@@ -47,16 +46,18 @@ pub fn initialize_elastic_clients() -> VecDeque<EsRepositoryPub> {
 
 #[doc = "Function to get elasticsearch connection"]
 async fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
-    
     /* Elasticsearch Connection 이 부족한 경우를 대비하여 대기 시간을 걸어준다. */
     for try_cnt in 1..=10 {
-        
         let es_repo: Option<EsRepositoryPub> = {
-            let mut pool: MutexGuard<'_, VecDeque<EsRepositoryPub>> = ELASTICSEARCH_CONN_POOL.lock().await;
-            
+            let mut pool: MutexGuard<'_, VecDeque<EsRepositoryPub>> =
+                ELASTICSEARCH_CONN_POOL.lock().await;
+
             /* 여기서 pool.pop_front()가 실행된 후, pool은 스코프를 벗어나면서 자동 해제 */
             let inner_pool: Option<EsRepositoryPub> = pool.pop_front();
-            info!("[connection get()] Elasticsearch pool.len = {:?}", pool.len());
+            info!(
+                "[connection get()] Elasticsearch pool.len = {:?}",
+                pool.len()
+            );
 
             inner_pool
         };
@@ -64,15 +65,15 @@ async fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
         if let Some(es_repo) = es_repo {
             return Ok(es_repo);
         }
-        
+
         warn!(
             "[Attempt {}] The Elasticsearch connection pool does not have an idle connection.",
             try_cnt
         );
-        
+
         tokio::time::sleep(Duration::from_secs(7)).await;
     }
-    
+
     return Err(anyhow!(
         "[Error][get_elastic_conn()] Cannot Find Elasticsearch Connection"
     ));
@@ -80,13 +81,13 @@ async fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
 
 #[doc = "Function to return Elasticsearch connection objects"]
 pub async fn release_elastic_conn(es_repo: EsRepositoryPub) {
+    let mut pool: MutexGuard<'_, VecDeque<EsRepositoryPub>> = ELASTICSEARCH_CONN_POOL.lock().await;
 
-    let mut pool: MutexGuard<'_, VecDeque<EsRepositoryPub>> = ELASTICSEARCH_CONN_POOL
-        .lock()
-        .await;
-    
     pool.push_back(es_repo);
-    info!("[connection return] Elasticsearch pool.len = {:?}", pool.len());
+    info!(
+        "[connection return] Elasticsearch pool.len = {:?}",
+        pool.len()
+    );
 }
 
 #[doc = "Functions that return Elasticsearch guard connections"]
@@ -96,7 +97,6 @@ pub async fn get_elastic_guard_conn() -> Result<ElasticConnGuard, anyhow::Error>
     Ok(es_guard)
 }
 
-
 #[doc = "RAII Pattern: Guard to automatically return connections"]
 pub struct ElasticConnGuard {
     es_repo: Option<EsRepositoryPub>,
@@ -105,14 +105,18 @@ pub struct ElasticConnGuard {
 impl ElasticConnGuard {
     pub async fn new() -> Result<Self, anyhow::Error> {
         let es_repo: EsRepositoryPub = get_elastic_conn().await?;
-        Ok(Self { es_repo: Some(es_repo) })
+        Ok(Self {
+            es_repo: Some(es_repo),
+        })
     }
 }
 
 impl Deref for ElasticConnGuard {
     type Target = EsRepositoryPub;
     fn deref(&self) -> &Self::Target {
-        self.es_repo.as_ref().expect("[Error] Attempted to dereference an empty ElasticConnGuard")
+        self.es_repo
+            .as_ref()
+            .expect("[Error] Attempted to dereference an empty ElasticConnGuard")
     }
 }
 
@@ -157,7 +161,7 @@ pub(crate) struct EsClient {
 impl EsRepositoryPub {
     pub fn new(es_url_vec: Vec<String>, es_id: &str, es_pw: &str) -> Result<Self, anyhow::Error> {
         let mut es_clients: Vec<EsClient> = Vec::new();
-        
+
         for url in es_url_vec {
             let parse_url: String = format!("http://{}:{}@{}", es_id, es_pw, url);
 

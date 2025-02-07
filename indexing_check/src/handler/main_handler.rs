@@ -27,7 +27,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
             telegram_service,
         }
     }
-    
+
     #[doc = "메인 스케쥴러 함수"]
     /// # Arguments
     /// * `index_schedule` - 인덱스 스케쥴 객체
@@ -44,7 +44,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
         let mut interval: Interval = tokio::time::interval(tokio::time::Duration::from_millis(
             schedule_term.schedule_term,
         ));
-        
+
         /* 한국 표준시 GMT + 9 */
         let kst_offset: FixedOffset = match FixedOffset::east_opt(9 * 3600) {
             Some(kst_offset) => kst_offset,
@@ -57,7 +57,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
                 );
             }
         };
-        
+
         loop {
             interval.tick().await;
 
@@ -87,7 +87,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
         info!("main task start: {}", index_schedule.index_name());
         /* 탐색할 인덱스 이름을 가져온다 -> UTC 시간 기준으로 이름이 맵핑된다. */
         let code_config: Arc<CodeConfig> = get_code_config_info();
-        
+
         let search_index_name: String = if code_config.code_type() == "prod" {
             let curr_date_utc: String = get_current_utc_naivedate_str("%Y-%m-%d")?;
             let search_index: Arc<SystemConfig> = get_system_config_info();
@@ -95,13 +95,13 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
         } else {
             String::from("vector-indexing-logs-2025-01-08")
         };
-        
+
         /* 현재시간 - utc 시간 */
         let curr_time_utc: NaiveDateTime = get_currnet_utc_naivedatetime();
         /* 색인 동작시간 */
         let time_minutes_ago: NaiveDateTime =
             curr_time_utc - chrono::Duration::seconds(index_schedule.duration);
-        
+
         /* 색인 로그 확인 -> ES 쿼리 */
         let vector_index_logs: Vec<VectorIndexLog> = self
             .query_service
@@ -117,7 +117,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
         let mut index_succ_flag: bool = false; /* 색인 완전 실패 유무 */
         let mut cnt_succ_flag: bool = false; /* 색인 부분 실패 유무 -> 건수가 지정값 미만인 경우 */
         let mut indexing_cnt_num: usize = 0; /* 색인된 문서 수 -> 기본적으로는 0개 */
-        
+
         for vector_index_log in vector_index_logs {
             let log_message: &String = vector_index_log.message();
 
@@ -145,7 +145,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
                 }
             }
         }
-        
+
         let system_config: Arc<SystemConfig> = get_system_config_info();
         let err_monitor_index: String = system_config.err_monitor_index().to_string();
 

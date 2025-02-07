@@ -3,12 +3,11 @@ pub use std::{
     env, fs,
     fs::File,
     io::{BufReader, Read, Write},
+    ops::Deref,
     path::Path,
     str::FromStr,
     sync::Arc,
-    ops::Deref
 };
-
 
 pub use derive_new::new;
 
@@ -17,11 +16,8 @@ pub use reqwest::Client;
 pub use tokio::{
     io::AsyncReadExt,
     signal,
+    sync::{Mutex, MutexGuard},
     time::{sleep, Duration, Interval},
-    sync::{
-        Mutex, 
-        MutexGuard
-    }
 };
 
 pub use dotenv::dotenv;
@@ -48,7 +44,8 @@ pub use elasticsearch::{
     http::response::Response,
     http::transport::{ConnectionPool, Transport as EsTransport},
     http::transport::{SingleNodeConnectionPool, TransportBuilder},
-    http::Url, Elasticsearch, IndexParts, SearchParts,
+    http::Url,
+    Elasticsearch, IndexParts, SearchParts,
 };
 
 pub use rand::{prelude::SliceRandom, rngs::StdRng, SeedableRng};

@@ -1,10 +1,9 @@
 use crate::common::*;
 
-
 #[doc = "Function responsible for logging"]
 pub fn set_global_logger() {
-    let log_directory = "logs"; /* Directory to store log files */ 
-    let file_prefix = ""; /* Prefixes for log files */ 
+    let log_directory = "logs"; /* Directory to store log files */
+    let file_prefix = ""; /* Prefixes for log files */
 
     // Logger setting
     Logger::try_with_str("info")
@@ -15,15 +14,14 @@ pub fn set_global_logger() {
                 .discriminant(file_prefix),
         )
         .rotate(
-            Criterion::Age(Age::Day),  /* daily rotation */ 
-            Naming::Timestamps,        /* Use timestamps for file names */ 
-            Cleanup::KeepLogFiles(10), /* Maintain up to 10 log files */ 
+            Criterion::Age(Age::Day),  /* daily rotation */
+            Naming::Timestamps,        /* Use timestamps for file names */
+            Cleanup::KeepLogFiles(10), /* Maintain up to 10 log files */
         )
         .format_for_files(custom_format)
         .start()
         .unwrap_or_else(|e| panic!("Logger initialization failed: {}", e));
 }
-
 
 #[doc = "Custom Log Format Function"]
 fn custom_format(

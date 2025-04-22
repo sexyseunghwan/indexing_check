@@ -1,6 +1,7 @@
 use crate::common::*;
 
 use crate::model::error_alarm_info::*;
+use crate::model::vector_index_log_format::VectorIndexLogFormat;
 use crate::service::query_service::*;
 use crate::service::smtp_service::*;
 use crate::service::telegram_service::*;
@@ -10,6 +11,7 @@ use crate::model::index_schedules_config::*;
 use crate::model::system_config::*;
 use crate::model::total_config::*;
 use crate::model::vector_index_log::*;
+use crate::model::error_alram_info_format::*;
 
 use crate::utils_modules::time_utils::*;
 
@@ -103,7 +105,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
             curr_time_utc - chrono::Duration::seconds(index_schedule.duration);
 
         /* 색인 로그 확인 -> ES 쿼리 */
-        let vector_index_logs: Vec<VectorIndexLog> = self
+        let vector_index_logs: Vec<VectorIndexLogFormat> = self
             .query_service
             .get_indexing_movement_log(
                 &search_index_name,
@@ -119,7 +121,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
         let mut indexing_cnt_num: usize = 0; /* 색인된 문서 수 -> 기본적으로는 0개 */
 
         for vector_index_log in vector_index_logs {
-            let log_message: &String = vector_index_log.message();
+            let log_message: &String = vector_index_log.vector_index_log.message();
 
             /* 정상적으로 색인이 되었을 경우에는 `index worked` 라는 문자열이 포함되어 있다. */
             if log_message.contains("index worked") {
@@ -189,8 +191,8 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
         }
 
         Ok(())
-    }
-
+    }   
+    
     #[doc = "알람관련 로직을 실행하는 함수 -> Telegram 메시지 발송 및 이메일 발송"]
     pub async fn alarm_task(&self) -> Result<(), anyhow::Error> {
         info!("alarm task start");
@@ -199,22 +201,33 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
         let err_monitor_index: String = system_config.err_monitor_index().to_string();
 
         /* Error 관련 인덱스를 조회한다. */
-        let error_alaram_infos: Vec<ErrorAlarmInfo> = self
+        let error_alaram_infos: Vec<ErrorAlarmInfoFormat> = self
             .query_service
             .get_error_alarm_infos(&err_monitor_index)
             .await?;
 
         if !error_alaram_infos.is_empty() {
+
             /* Telegram && 이메일 알람 전송*/
             /* 1. Telegram 전송 */
             self.telegram_service
                 .send_indexing_failed_msg(&error_alaram_infos)
                 .await?;
 
-            /* 2. Email 전송 */
+            // /* 2. Email 전송 */
             self.smtp_service
                 .send_message_to_receivers(&error_alaram_infos)
                 .await?;
+
+            for alarm in error_alaram_infos {
+                let error_alram_info: &ErrorAlarmInfo = alarm.error_alram_info();
+                let index_type: &str = error_alram_info.index_type();
+
+                /* 증분색인인 경우에는 한번 알람 주고 제거 */
+                if index_type == "dynamic index" {
+                    
+                }
+            }
         }
 
         Ok(())

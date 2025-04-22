@@ -3,6 +3,7 @@ use crate::common::*;
 use crate::repository::telegram_repository::*;
 
 use crate::model::error_alarm_info::*;
+use crate::model::error_alram_info_format::*;
 use crate::model::system_config::*;
 use crate::model::total_config::*;
 
@@ -10,7 +11,7 @@ use crate::model::total_config::*;
 pub trait TelegramService {
     async fn send_indexing_failed_msg(
         &self,
-        error_alaram_infos: &Vec<ErrorAlarmInfo>,
+        error_alaram_infos: &Vec<ErrorAlarmInfoFormat>,
     ) -> Result<(), anyhow::Error>;
     fn get_error_clasification(
         &self,
@@ -32,7 +33,7 @@ impl TelegramService for TelegramServicePub {
     /// * Result<(), anyhow::Error>
     async fn send_indexing_failed_msg(
         &self,
-        error_alaram_infos: &Vec<ErrorAlarmInfo>,
+        error_alaram_infos: &Vec<ErrorAlarmInfoFormat>,
     ) -> Result<(), anyhow::Error> {
         let tele_repo: Arc<TelebotRepositoryPub> = get_telegram_repo();
 
@@ -43,7 +44,7 @@ impl TelegramService for TelegramServicePub {
 
         for (_i, chunk) in error_alaram_infos.chunks(msg_chunk_size).enumerate() {
             for item in chunk {
-                self.get_error_clasification(&item, &mut err_alram_map)?;
+                self.get_error_clasification(item.error_alram_info(), &mut err_alram_map)?;
             }
 
             let mut msg_format: String = String::from("[Elasticsearch Indexing Error!]\n");

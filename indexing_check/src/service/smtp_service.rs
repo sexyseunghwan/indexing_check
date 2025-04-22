@@ -2,6 +2,8 @@ use crate::common::*;
 
 use crate::model::elastic_server_config::*;
 use crate::model::error_alarm_info::*;
+use crate::model::error_alram_info_format::*;
+use crate::model::error_alram_info_format::ErrorAlarmInfoFormat;
 use crate::model::receiver_emai_config::*;
 use crate::model::smtp_config::*;
 use crate::model::total_config::*;
@@ -20,7 +22,7 @@ pub trait SmtpService {
     ) -> Result<String, anyhow::Error>;
     async fn send_message_to_receivers(
         &self,
-        error_alarm_infos: &Vec<ErrorAlarmInfo>,
+        error_alarm_infos: &Vec<ErrorAlarmInfoFormat>,
     ) -> Result<(), anyhow::Error>;
 }
 
@@ -105,7 +107,7 @@ impl SmtpService for SmtpServicePub {
     /// * Result<(), anyhow::Error>
     async fn send_message_to_receivers(
         &self,
-        error_alarm_infos: &Vec<ErrorAlarmInfo>,
+        error_alarm_infos: &Vec<ErrorAlarmInfoFormat>,
     ) -> Result<(), anyhow::Error> {
         /* configs */
         let elastic_config: Arc<ElasticServerConfig> = get_elasticsearch_config_info();
@@ -119,7 +121,7 @@ impl SmtpService for SmtpServicePub {
         let html_template: String = fs::read_to_string(Path::new(HTML_TEMPLATE_PATH.as_str()))?;
 
         for err_info in error_alarm_infos {
-            let err_info_tag: String = err_info.convert_email_struct()?;
+            let err_info_tag: String = err_info.error_alram_info().convert_email_struct()?;
             inner_template.push_str(&err_info_tag);
         }
 

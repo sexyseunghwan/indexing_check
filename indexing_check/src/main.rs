@@ -8,6 +8,7 @@ History     : 2024-12-30 Seunghwan Shin       # [v.1.0.0] first create
                                                 1) 색인 실패가 발생하였을 때, 알람을 계속 울릴 수 있도록 로직 변경.
                                                 2) .env 파일사용으로 경로변경을 쉽게 할 수 있도록 변경
                                                 3) 전체적인 알람구조 형식 변경
+              2025-04-22 Seunghwan Shin       # [v.1.2.0] 증분색인 실패시에는 한번만 알람 보내주는 로직으로 변경
 */
 mod common;
 use common::*;

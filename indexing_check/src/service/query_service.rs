@@ -3,16 +3,22 @@ use crate::common::*;
 use crate::repository::es_repository::*;
 
 use crate::utils_modules::time_utils::*;
+use crate::utils_modules::traits::*;
 
 use crate::model::error_alarm_info::*;
+use crate::model::error_alram_info_format::*;
 use crate::model::vector_index_log::*;
+use crate::model::vector_index_log_format::*;
 
 #[async_trait]
 pub trait QueryService {
-    async fn get_query_result_vec<T: DeserializeOwned>(
+    async fn get_query_result_vec<T,S>(
         &self,
         response_body: &Value,
-    ) -> Result<Vec<T>, anyhow::Error>;
+    ) -> Result<Vec<T>, anyhow::Error>
+    where
+        S: DeserializeOwned,
+        T: FromSearchHit<S>;
     async fn get_indexing_movement_log(
         &self,
         query_index: &str,
@@ -20,7 +26,7 @@ pub trait QueryService {
         index_type: &str,
         start_dt: NaiveDateTime,
         end_dt: NaiveDateTime,
-    ) -> Result<Vec<VectorIndexLog>, anyhow::Error>;
+    ) -> Result<Vec<VectorIndexLogFormat>, anyhow::Error>;
     async fn post_indexing_error_info(
         &self,
         index_name: &str,
@@ -29,7 +35,7 @@ pub trait QueryService {
     async fn get_error_alarm_infos(
         &self,
         index_name: &str,
-    ) -> Result<Vec<ErrorAlarmInfo>, anyhow::Error>;
+    ) -> Result<Vec<ErrorAlarmInfoFormat>, anyhow::Error>;
 }
 
 #[derive(Debug, new)]
@@ -43,32 +49,70 @@ impl QueryService for QueryServicePub {
     ///
     /// # Returns
     /// * Result<Vec<T>, anyhow::Error>
-    async fn get_query_result_vec<T: DeserializeOwned>(
+    async fn get_query_result_vec<T, S>(
         &self,
         response_body: &Value,
-    ) -> Result<Vec<T>, anyhow::Error> {
-        let hits: &Value = &response_body["hits"]["hits"];
+    ) -> Result<Vec<T>, anyhow::Error>
+    where 
+        S: DeserializeOwned,
+        T: FromSearchHit<S>
+    {
+        let hits: &Value = response_body
+            .get("hits")
+            .and_then(|h| h.get("hits"))
+            .ok_or_else(|| anyhow!("Missing 'hits.hits' field"))?;
 
-        let results: Vec<T> = hits
+        let arr: &Vec<Value> = hits
             .as_array()
-            .ok_or_else(|| anyhow!("[Error][get_query_result_vec()] 'hits' field is not an array"))?
+            .ok_or_else(|| anyhow!("'hits.hits' is not an array"))?;
+
+        /* ID + source 역직렬화 → T 로 변환 */ 
+        let results: Vec<T> = arr
             .iter()
             .map(|hit| {
-                let source: &Value = hit.get("_source").ok_or_else(|| {
-                    anyhow!("[Error][get_query_result_vec()] Missing '_source' field")
-                })?;
+                /* 1) doc_id */ 
+                let id: String = hit.get("_id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow!("Missing or invalid '_id'"))?
+                    .to_string();
 
-                let source: T = serde_json::from_value(source.clone()).map_err(|e| {
-                    anyhow!(
-                        "[Error][get_query_result_vec()] Failed to deserialize source: {:?}",
-                        e
-                    )
-                })?;
+                /* 2) source 역직렬화 */ 
+                let src_val: &Value = hit.get("_source")
+                    .ok_or_else(|| anyhow!("Missing '_source'"))?;
 
-                Ok::<T, anyhow::Error>(source)
+                let source: S = serde_json::from_value(src_val.clone())
+                    .map_err(|e| anyhow!("Failed to deserialize source: {}", e))?;
+
+                /* 3) 트레이트 메서드로 T 생성 */ 
+                Ok::<T, anyhow::Error>(T::from_search_hit(id, source))
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<_, _>>()?;        
 
+
+
+
+        // let results = hits.as_array()
+        //     .ok_or_else(|| anyhow!("[Error][get_query_result_vec] 'hits.hits' is not an array"))?
+        //     .iter()
+        //     .map(|hit| {
+        //         /* _id 필드(String) 추출 */ 
+        //         let id_str: &str = hit.get("_id")
+        //             .and_then(|v| v.as_str())
+        //             .ok_or_else(|| anyhow!("[Error][get_query_result_vec] Missing or invalid '_id' field"))?;
+
+        //         /* _source 필드(Value) 추출 */ 
+        //         let source_val: &Value = hit.get("_source")
+        //             .ok_or_else(|| anyhow!("[Error][get_query_result_vec] Missing '_source' field"))?;
+
+        //         /* T로 역직렬화 */ 
+        //         let source: T = serde_json::from_value(source_val.clone())
+        //             .map_err(|e| anyhow!("[Error][get_query_result_vec] Failed to deserialize source: {}", e))?;
+                
+        //         Ok((id_str.to_string(), source))
+        //     })
+        //     .collect::<Result<Vec<T>, anyhow::Error>>()?;
+
+            
         Ok(results)
     }
 
@@ -89,7 +133,7 @@ impl QueryService for QueryServicePub {
         index_type: &str,
         start_dt: NaiveDateTime,
         end_dt: NaiveDateTime,
-    ) -> Result<Vec<VectorIndexLog>, anyhow::Error> {
+    ) -> Result<Vec<VectorIndexLogFormat>, anyhow::Error> {
         let start_dt_str: String = get_str_from_naive_datetime(start_dt, "%Y-%m-%dT%H:%M:%SZ")?;
         let end_dt_str: String = get_str_from_naive_datetime(end_dt, "%Y-%m-%dT%H:%M:%SZ")?;
 
@@ -119,14 +163,14 @@ impl QueryService for QueryServicePub {
                 }
             }
         });
-
+        
         let es_client: ElasticConnGuard = get_elastic_guard_conn().await?;
         let response_body: Value = es_client.get_search_query(&query, query_index).await?;
 
-        let result: Vec<VectorIndexLog> = self
-            .get_query_result_vec::<VectorIndexLog>(&response_body)
+        let result: Vec<VectorIndexLogFormat> = self
+            .get_query_result_vec::<VectorIndexLogFormat, VectorIndexLog>(&response_body)
             .await?;
-
+        
         Ok(result)
     }
 
@@ -165,7 +209,7 @@ impl QueryService for QueryServicePub {
     async fn get_error_alarm_infos(
         &self,
         index_name: &str,
-    ) -> Result<Vec<ErrorAlarmInfo>, anyhow::Error> {
+    ) -> Result<Vec<ErrorAlarmInfoFormat>, anyhow::Error> {
         let es_client: ElasticConnGuard = get_elastic_guard_conn().await?;
 
         let query: Value = json!({
@@ -174,10 +218,10 @@ impl QueryService for QueryServicePub {
             },
             "size": 1000
         });
-
+        
         let response_body: Value = es_client.get_search_query(&query, index_name).await?;
-        let err_alram_infos: Vec<ErrorAlarmInfo> = self
-            .get_query_result_vec::<ErrorAlarmInfo>(&response_body)
+        let err_alram_infos: Vec<ErrorAlarmInfoFormat> = self
+            .get_query_result_vec::<ErrorAlarmInfoFormat, ErrorAlarmInfo>(&response_body)
             .await?;
 
         Ok(err_alram_infos)

@@ -145,6 +145,8 @@ pub trait EsRepository {
         param_struct: &T,
         index_name: &str,
     ) -> Result<(), anyhow::Error>;
+
+    async fn delete_query(&self, doc_id: &str, index_name: &str) -> Result<(), anyhow::Error>;
 }
 
 #[derive(Debug, Getters, Clone)]
@@ -290,37 +292,28 @@ impl EsRepository for EsRepositoryPub {
         }
     }
 
-    // #[doc = "Function that EXECUTES elasticsearch queries - delete"]
-    // async fn delete_query(&self, doc_id: &str, index_name: &str) -> Result<(), anyhow::Error> {
-    //     let response = self
-    //         .execute_on_any_node(|es_client| async move {
-    //             // let body = serde_json::json!({
-    //             //     "query": {
-    //             //         "ids": {
-    //             //             "values": [doc_id]
-    //             //         }
-    //             //     }
-    //             // });
+    #[doc = "Function that EXECUTES elasticsearch queries - delete"]
+    async fn delete_query(&self, doc_id: &str, index_name: &str) -> Result<(), anyhow::Error> {
+        let response: Response = self
+            .execute_on_any_node(|es_client| async move {
 
-    //             let response = es_client
-    //                 .es_conn
-    //                 //.delete_by_query(DeleteByQueryParts::Index(&[index_name]))
-    //                 //.body(body)
-    //                 .delete(DeleteParts::IndexId(index_name, doc_id))
-    //                 .send()
-    //                 .await?;
+                let response: Response = es_client
+                    .es_conn
+                    .delete(DeleteParts::IndexId(index_name, doc_id))
+                    .send()
+                    .await?;
 
-    //             println!("{:?}", response);
+                info!("[{}] document of [{}] Index has been erased", doc_id, index_name);
 
-    //             Ok(response)
-    //         })
-    //         .await?;
+                Ok(response)
+            })
+            .await?;
 
-    //     if response.status_code().is_success() {
-    //         Ok(())
-    //     } else {
-    //         let error_message = format!("[Elasticsearch Error][node_delete_query()] Failed to delete document: Status Code: {}, Document ID: {}", response.status_code(), doc_id);
-    //         Err(anyhow!(error_message))
-    //     }
-    // }
+        if response.status_code().is_success() {
+            Ok(())
+        } else {
+            let error_message = format!("[Elasticsearch Error][node_delete_query()] Failed to delete document: Status Code: {}, Document ID: {}", response.status_code(), doc_id);
+            Err(anyhow!(error_message))
+        }
+    }
 }

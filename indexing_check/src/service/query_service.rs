@@ -12,7 +12,7 @@ use crate::model::vector_index_log_format::*;
 
 #[async_trait]
 pub trait QueryService {
-    async fn get_query_result_vec<T,S>(
+    async fn get_query_result_vec<T, S>(
         &self,
         response_body: &Value,
     ) -> Result<Vec<T>, anyhow::Error>
@@ -36,6 +36,11 @@ pub trait QueryService {
         &self,
         index_name: &str,
     ) -> Result<Vec<ErrorAlarmInfoFormat>, anyhow::Error>;
+    async fn delete_index_by_doc(
+        &self,
+        index_name: &str,
+        doc_id: &str,
+    ) -> Result<(), anyhow::Error>;
 }
 
 #[derive(Debug, new)]
@@ -53,9 +58,9 @@ impl QueryService for QueryServicePub {
         &self,
         response_body: &Value,
     ) -> Result<Vec<T>, anyhow::Error>
-    where 
+    where
         S: DeserializeOwned,
-        T: FromSearchHit<S>
+        T: FromSearchHit<S>,
     {
         let hits: &Value = response_body
             .get("hits")
@@ -66,53 +71,51 @@ impl QueryService for QueryServicePub {
             .as_array()
             .ok_or_else(|| anyhow!("'hits.hits' is not an array"))?;
 
-        /* ID + source 역직렬화 → T 로 변환 */ 
+        /* ID + source 역직렬화 → T 로 변환 */
         let results: Vec<T> = arr
             .iter()
             .map(|hit| {
-                /* 1) doc_id */ 
-                let id: String = hit.get("_id")
+                /* 1) doc_id */
+                let id: String = hit
+                    .get("_id")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow!("Missing or invalid '_id'"))?
                     .to_string();
 
-                /* 2) source 역직렬화 */ 
-                let src_val: &Value = hit.get("_source")
+                /* 2) source 역직렬화 */
+                let src_val: &Value = hit
+                    .get("_source")
                     .ok_or_else(|| anyhow!("Missing '_source'"))?;
 
                 let source: S = serde_json::from_value(src_val.clone())
                     .map_err(|e| anyhow!("Failed to deserialize source: {}", e))?;
 
-                /* 3) 트레이트 메서드로 T 생성 */ 
+                /* 3) 트레이트 메서드로 T 생성 */
                 Ok::<T, anyhow::Error>(T::from_search_hit(id, source))
             })
-            .collect::<Result<_, _>>()?;        
-
-
-
+            .collect::<Result<_, _>>()?;
 
         // let results = hits.as_array()
         //     .ok_or_else(|| anyhow!("[Error][get_query_result_vec] 'hits.hits' is not an array"))?
         //     .iter()
         //     .map(|hit| {
-        //         /* _id 필드(String) 추출 */ 
+        //         /* _id 필드(String) 추출 */
         //         let id_str: &str = hit.get("_id")
         //             .and_then(|v| v.as_str())
         //             .ok_or_else(|| anyhow!("[Error][get_query_result_vec] Missing or invalid '_id' field"))?;
 
-        //         /* _source 필드(Value) 추출 */ 
+        //         /* _source 필드(Value) 추출 */
         //         let source_val: &Value = hit.get("_source")
         //             .ok_or_else(|| anyhow!("[Error][get_query_result_vec] Missing '_source' field"))?;
 
-        //         /* T로 역직렬화 */ 
+        //         /* T로 역직렬화 */
         //         let source: T = serde_json::from_value(source_val.clone())
         //             .map_err(|e| anyhow!("[Error][get_query_result_vec] Failed to deserialize source: {}", e))?;
-                
+
         //         Ok((id_str.to_string(), source))
         //     })
         //     .collect::<Result<Vec<T>, anyhow::Error>>()?;
 
-            
         Ok(results)
     }
 
@@ -163,14 +166,14 @@ impl QueryService for QueryServicePub {
                 }
             }
         });
-        
+
         let es_client: ElasticConnGuard = get_elastic_guard_conn().await?;
         let response_body: Value = es_client.get_search_query(&query, query_index).await?;
 
         let result: Vec<VectorIndexLogFormat> = self
             .get_query_result_vec::<VectorIndexLogFormat, VectorIndexLog>(&response_body)
             .await?;
-        
+
         Ok(result)
     }
 
@@ -218,12 +221,29 @@ impl QueryService for QueryServicePub {
             },
             "size": 1000
         });
-        
+
         let response_body: Value = es_client.get_search_query(&query, index_name).await?;
         let err_alram_infos: Vec<ErrorAlarmInfoFormat> = self
             .get_query_result_vec::<ErrorAlarmInfoFormat, ErrorAlarmInfo>(&response_body)
             .await?;
 
         Ok(err_alram_infos)
+    }
+
+    #[doc = "특정 인덱스의 특정 문서를 삭제해주는 함수"]
+    /// # Arguments
+    /// * `index_name` - 삭제 대상이 되는 인덱스 이름
+    /// * `doc_id` - 삭제할 문서의 id
+    ///
+    /// # Returns
+    /// * Result<Vec<ErrorAlarmInfo>, anyhow::Error>
+    async fn delete_index_by_doc(
+        &self,
+        index_name: &str,
+        doc_id: &str,
+    ) -> Result<(), anyhow::Error> {
+        let es_client: ElasticConnGuard = get_elastic_guard_conn().await?;
+        es_client.delete_query(doc_id, index_name).await?;
+        Ok(())
     }
 }

@@ -45,7 +45,7 @@ pub use elasticsearch::{
     http::transport::{ConnectionPool, Transport as EsTransport},
     http::transport::{SingleNodeConnectionPool, TransportBuilder},
     http::Url,
-    Elasticsearch, IndexParts, SearchParts,
+    Elasticsearch, IndexParts, SearchParts, DeleteParts,
 };
 
 pub use rand::{prelude::SliceRandom, rngs::StdRng, SeedableRng};

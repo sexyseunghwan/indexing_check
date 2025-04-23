@@ -1,17 +1,16 @@
 use crate::common::*;
 
 use crate::model::error_alarm_info::*;
-use crate::model::vector_index_log_format::VectorIndexLogFormat;
+use crate::model::vector_index_log_format::*;
 use crate::service::query_service::*;
 use crate::service::smtp_service::*;
 use crate::service::telegram_service::*;
 
 use crate::model::code_config::*;
+use crate::model::error_alram_info_format::*;
 use crate::model::index_schedules_config::*;
 use crate::model::system_config::*;
 use crate::model::total_config::*;
-use crate::model::vector_index_log::*;
-use crate::model::error_alram_info_format::*;
 
 use crate::utils_modules::time_utils::*;
 
@@ -78,7 +77,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
             }
         }
     }
-
+    
     #[doc = "인덱스 정적 색인 작업 확인 함수"]
     /// # Arguments
     /// * `index_schedule` - 인덱스 스케쥴 객체
@@ -147,7 +146,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
                 }
             }
         }
-
+        
         let system_config: Arc<SystemConfig> = get_system_config_info();
         let err_monitor_index: String = system_config.err_monitor_index().to_string();
 
@@ -191,8 +190,8 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
         }
 
         Ok(())
-    }   
-    
+    }
+
     #[doc = "알람관련 로직을 실행하는 함수 -> Telegram 메시지 발송 및 이메일 발송"]
     pub async fn alarm_task(&self) -> Result<(), anyhow::Error> {
         info!("alarm task start");
@@ -207,14 +206,13 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
             .await?;
 
         if !error_alaram_infos.is_empty() {
-
             /* Telegram && 이메일 알람 전송*/
             /* 1. Telegram 전송 */
             self.telegram_service
                 .send_indexing_failed_msg(&error_alaram_infos)
                 .await?;
 
-            // /* 2. Email 전송 */
+            /* 2. Email 전송 */
             self.smtp_service
                 .send_message_to_receivers(&error_alaram_infos)
                 .await?;
@@ -225,7 +223,7 @@ impl<S: SmtpService, Q: QueryService, T: TelegramService> MainHandler<S, Q, T> {
 
                 /* 증분색인인 경우에는 한번 알람 주고 제거 */
                 if index_type == "dynamic index" {
-                    
+                    self.query_service.delete_index_by_doc(&err_monitor_index,alarm.doc_id()).await?;
                 }
             }
         }

@@ -1,8 +1,6 @@
 use crate::common::*;
 
 use crate::model::elastic_server_config::*;
-use crate::model::error_alarm_info::*;
-use crate::model::error_alram_info_format::*;
 use crate::model::error_alram_info_format::ErrorAlarmInfoFormat;
 use crate::model::receiver_emai_config::*;
 use crate::model::smtp_config::*;

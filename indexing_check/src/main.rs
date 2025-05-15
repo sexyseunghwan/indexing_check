@@ -9,6 +9,7 @@ History     : 2024-12-30 Seunghwan Shin       # [v.1.0.0] first create
                                                 2) .env 파일사용으로 경로변경을 쉽게 할 수 있도록 변경
                                                 3) 전체적인 알람구조 형식 변경
               2025-04-22 Seunghwan Shin       # [v.1.2.0] 증분색인 실패시에는 한번만 알람 보내주는 로직으로 변경
+              2025-05-16 Seunghwan Shin       # [v.1.3.0] Elasticsearch connection Pool을 Mutex -> Semaphore 로 변경
 */
 mod common;
 use common::*;
@@ -55,7 +56,7 @@ async fn main() {
 
     let alarm_handler: Arc<MainHandler<SmtpServicePub, QueryServicePub, TelegramServicePub>> =
         Arc::clone(&handler_arc);
-
+    
     /* 알람 테스크 */
     tokio::spawn(async move {
         let mut other_interval: Interval = time::interval(Duration::from_secs(60));

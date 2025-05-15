@@ -16,7 +16,7 @@ pub use reqwest::Client;
 pub use tokio::{
     io::AsyncReadExt,
     signal,
-    sync::{Mutex, MutexGuard},
+    sync::{Semaphore, OwnedSemaphorePermit},
     time::{sleep, Duration, Interval},
 };
 
@@ -32,7 +32,7 @@ pub use serde_json::{from_reader, json, Value};
 
 pub use async_trait::async_trait;
 
-pub use log::{error, info, warn};
+pub use log::{error, info};
 
 pub use flexi_logger::{Age, Cleanup, Criterion, FileSpec, Logger, Naming, Record};
 

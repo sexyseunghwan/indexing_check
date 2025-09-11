@@ -2,17 +2,20 @@ use crate::common::*;
 
 use crate::model::total_config::*;
 
+use crate::traits::repository_traits::telegram_repository_trait::*;
+
 #[doc = "전역 Telebot 인스턴스를 선언"]
 static TELEGRAM_REPO: once_lazy<Arc<TelebotRepositoryPub>> =
-    once_lazy::new(|| initialize_tele_bot_client());
+    once_lazy::new(initialize_tele_bot_client);
 
 #[doc = "Telebot 을 전역적으로 초기화 함."]
 pub fn initialize_tele_bot_client() -> Arc<TelebotRepositoryPub> {
     info!("initialize_tele_bot_client() START!");
 
-    let telegram_config = get_telegram_config_info();
-    let bot_token = telegram_config.bot_token();
-    let chat_room_id = telegram_config.chat_room_id();
+    let telegram_config: Arc<crate::model::telegram_config::TelegramConfig> =
+        get_telegram_config_info();
+    let bot_token: &String = telegram_config.bot_token();
+    let chat_room_id: &String = telegram_config.chat_room_id();
 
     let tele_repo: TelebotRepositoryPub =
         TelebotRepositoryPub::new(bot_token.clone(), chat_room_id.clone());
@@ -23,17 +26,6 @@ pub fn initialize_tele_bot_client() -> Arc<TelebotRepositoryPub> {
 #[doc = "TelebotService 를 Thread-safe 하게 이용하는 함수."]
 pub fn get_telegram_repo() -> Arc<TelebotRepositoryPub> {
     Arc::clone(&TELEGRAM_REPO)
-}
-
-#[async_trait]
-pub trait TelebotRepository {
-    async fn bot_send(&self, send_msg: &str) -> Result<(), anyhow::Error>;
-    async fn try_send(
-        &self,
-        client: &reqwest::Client,
-        url: &str,
-        body: &Value,
-    ) -> Result<(), anyhow::Error>;
 }
 
 /* TelebotService는 비즈니스 로직을 담당하는 서비스 레이어로 분리 */

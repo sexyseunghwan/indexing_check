@@ -7,11 +7,11 @@ use crate::utils_modules::traits::*;
 #[getset(get = "pub", set = "pub")]
 pub struct ErrorAlarmInfoFormat {
     pub doc_id: String,
-    pub error_alram_info: ErrorAlarmInfo,
+    pub error_alarm_info: ErrorAlarmInfo,
 }
 
 impl FromSearchHit<ErrorAlarmInfo> for ErrorAlarmInfoFormat {
-    fn from_search_hit(doc_id: String, error_alram_info: ErrorAlarmInfo) -> Self {
-        ErrorAlarmInfoFormat::new(doc_id, error_alram_info)
+    fn from_search_hit(doc_id: String, error_alarm_info: ErrorAlarmInfo) -> Self {
+        ErrorAlarmInfoFormat::new(doc_id, error_alarm_info)
     }
 }

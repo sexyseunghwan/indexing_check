@@ -1,26 +1,33 @@
 use crate::common::*;
 
+#[doc = "환경변수를 읽고, 없을 경우 error 로그 후 panic"]
+fn get_env_or_panic(key: &str) -> String {
+    match env::var(key) {
+        Ok(val) => val,
+        Err(_) => {
+            let msg = format!("[ENV file read Error] '{}' must be set", key);
+            error!("{}", msg);
+            panic!("{}", msg);
+        }
+    }
+}
+
 #[doc = "Function to globally initialize the 'INDEX_LIST_PATH' variable"]
-pub static INDEX_LIST_PATH: once_lazy<String> = once_lazy::new(|| {
-    dotenv().ok();
-    env::var("INDEX_LIST_PATH").expect("[ENV file read Error] 'INDEX_LIST_PATH' must be set")
-});
+pub static INDEX_LIST_PATH: once_lazy<String> =
+    once_lazy::new(|| get_env_or_panic("INDEX_LIST_PATH"));
 
 #[doc = "Function to globally initialize the 'EMAIL_RECEIVER_PATH' variable"]
-pub static EMAIL_RECEIVER_PATH: once_lazy<String> = once_lazy::new(|| {
-    dotenv().ok();
-    env::var("EMAIL_RECEIVER_PATH")
-        .expect("[ENV file read Error] 'EMAIL_RECEIVER_PATH' must be set")
-});
+pub static EMAIL_RECEIVER_PATH: once_lazy<String> =
+    once_lazy::new(|| get_env_or_panic("EMAIL_RECEIVER_PATH"));
 
 #[doc = "Function to globally initialize the 'SYSTEM_CONFIG_PATH' variable"]
-pub static SYSTEM_CONFIG_PATH: once_lazy<String> = once_lazy::new(|| {
-    dotenv().ok();
-    env::var("SYSTEM_CONFIG_PATH").expect("[ENV file read Error] 'SYSTEM_CONFIG_PATH' must be set")
-});
+pub static SYSTEM_CONFIG_PATH: once_lazy<String> =
+    once_lazy::new(|| get_env_or_panic("SYSTEM_CONFIG_PATH"));
 
 #[doc = "Function to globally initialize the 'HTML_TEMPLATE_PATH' variable"]
-pub static HTML_TEMPLATE_PATH: once_lazy<String> = once_lazy::new(|| {
-    dotenv().ok();
-    env::var("HTML_TEMPLATE_PATH").expect("[ENV file read Error] 'HTML_TEMPLATE_PATH' must be set")
-});
+pub static HTML_TEMPLATE_PATH: once_lazy<String> =
+    once_lazy::new(|| get_env_or_panic("HTML_TEMPLATE_PATH"));
+
+#[doc = "Function to globally initialize the 'SQL_SERVER_INFO_PATH' variable"]
+pub static SQL_SERVER_INFO_PATH: once_lazy<String> =
+    once_lazy::new(|| get_env_or_panic("SQL_SERVER_INFO_PATH"));

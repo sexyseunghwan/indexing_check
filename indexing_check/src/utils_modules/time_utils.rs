@@ -20,10 +20,17 @@ pub fn get_current_kor_naive_datetime() -> NaiveDateTime {
     kst_time.naive_local()
 }
 
+#[doc = "현재 한국시간을 문자열로 반환해주는 함수"]
+pub fn get_current_kor_naive_datetime_str() -> Result<String, anyhow::Error> {
+    let cur_time: NaiveDateTime = get_current_kor_naive_datetime();
+    let cur_time_str: String = get_str_from_naivedatetime(cur_time, "%Y-%m-%dT%H:%M:%SZ")?;
+    Ok(cur_time_str)
+}
+
 /*
     Function that returns the current UTC time as a string
 */
-#[doc = ""]
+#[doc = "Function that returns the current UTC time as a string"]
 pub fn get_current_utc_naivedate_str(fmt: &str) -> Result<String, anyhow::Error> {
     let curr_time = get_current_utc_naivedate();
     get_str_from_naivedate(curr_time, fmt)
@@ -40,7 +47,7 @@ pub fn get_str_from_naivedatetime(
 
 #[doc = "Function that converts the date data 'naivedate' format to the string format"]
 pub fn get_str_from_naivedate(naive_date: NaiveDate, fmt: &str) -> Result<String, anyhow::Error> {
-    let result_date = naive_date.format(fmt).to_string();
+    let result_date: String = naive_date.format(fmt).to_string();
     Ok(result_date)
 }
 
@@ -49,21 +56,8 @@ pub fn get_str_from_naive_datetime(
     naive_datetime: NaiveDateTime,
     fmt: &str,
 ) -> Result<String, anyhow::Error> {
-    let result_date = naive_datetime.format(fmt).to_string();
+    let result_date: String = naive_datetime.format(fmt).to_string();
     Ok(result_date)
 }
 
-#[doc = "Function to change 'string' data format to 'NaiveDateTime' format"]
-pub fn get_naive_datetime_from_str(
-    date: &str,
-    format: &str,
-) -> Result<NaiveDateTime, anyhow::Error> {
-    NaiveDateTime::parse_from_str(date, format)
-        .map_err(|e| anyhow!("[Datetime Parsing Error][get_naive_datetime_from_str()] Failed to parse date string: {:?} : {:?}", date, e))
-}
 
-#[doc = "Function to change 'string' data format to 'NaiveDate' format"]
-pub fn get_naive_date_from_str(date: &str, format: &str) -> Result<NaiveDate, anyhow::Error> {
-    NaiveDate::parse_from_str(date, format)
-        .map_err(|e| anyhow!("[Datetime Parsing Error][get_naive_date_from_str()] Failed to parse date string: {:?} : {:?}", date, e))
-}

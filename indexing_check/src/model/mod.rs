@@ -1,8 +1,9 @@
 pub mod code_config;
 pub mod elastic_server_config;
 pub mod error_alarm_info;
-pub mod error_alram_info_format;
+pub mod error_alarm_info_format;
 pub mod index_schedules_config;
+pub mod rdb_config;
 pub mod receiver_emai_config;
 pub mod smtp_config;
 pub mod system_config;

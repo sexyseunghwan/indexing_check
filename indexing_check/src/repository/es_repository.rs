@@ -5,6 +5,7 @@ use crate::utils_modules::io_utils::*;
 use crate::model::elastic_server_config::*;
 use crate::model::total_config::*;
 
+use crate::traits::repository_traits::es_repository_trait::*;
 
 static ELASTICSEARCH_CONN_SEMAPHORE_POOL: once_lazy<Vec<Arc<EsRepositoryPub>>> = once_lazy::new(
     || {
@@ -13,7 +14,7 @@ static ELASTICSEARCH_CONN_SEMAPHORE_POOL: once_lazy<Vec<Arc<EsRepositoryPub>>> =
         let es_host: &Vec<String> = config.elastic_host();
         let es_id: String = config.elastic_id().clone().unwrap_or(String::from(""));
         let es_pw: String = config.elastic_pw().clone().unwrap_or(String::from(""));
-        
+
         (0..pool_cnt)
         .map(|_| {
             Arc::new(
@@ -22,9 +23,8 @@ static ELASTICSEARCH_CONN_SEMAPHORE_POOL: once_lazy<Vec<Arc<EsRepositoryPub>>> =
             )
         })
         .collect()
-    }
+    },
 );
-
 
 static SEMAPHORE: once_lazy<Arc<Semaphore>> = once_lazy::new(|| {
     let config: Arc<ElasticServerConfig> = get_elasticsearch_config_info();
@@ -39,7 +39,10 @@ pub struct ElasticConnGuard {
 
 impl ElasticConnGuard {
     pub async fn new() -> Result<Self, anyhow::Error> {
-        info!("[ElasticConnGuard] Available permits: {}", SEMAPHORE.available_permits());
+        info!(
+            "[ElasticConnGuard] Available permits: {}",
+            SEMAPHORE.available_permits()
+        );
         let permit: OwnedSemaphorePermit = SEMAPHORE.clone().acquire_owned().await?;
         info!("[ElasticConnGuard] Acquired semaphore");
 
@@ -75,151 +78,6 @@ pub async fn get_elastic_guard_conn() -> Result<ElasticConnGuard, anyhow::Error>
     ElasticConnGuard::new().await
 }
 
-
-// #[doc = "Elasticsearch connection object to be used in a single tone"]
-// static ELASTICSEARCH_CONN_POOL: once_lazy<Arc<Mutex<VecDeque<EsRepositoryPub>>>> =
-//     once_lazy::new(|| Arc::new(Mutex::new(initialize_elastic_clients())));
-
-// #[doc = "Function to initialize Elasticsearch connection instances"]
-// pub fn initialize_elastic_clients() -> VecDeque<EsRepositoryPub> {
-//     info!("initialize_elastic_clients() START!");
-
-//     let config: Arc<ElasticServerConfig> = get_elasticsearch_config_info();
-    
-//     /* Number of Elasticsearch connection pool */
-//     let pool_cnt: i32 = *config.elastic_pool_cnt();
-
-//     let es_host: &Vec<String> = config.elastic_host();
-//     let es_id: String = config.elastic_id().clone().unwrap_or(String::from(""));
-//     let es_pw: String = config.elastic_pw().clone().unwrap_or(String::from(""));
-
-//     let mut es_pool_vec: VecDeque<EsRepositoryPub> = VecDeque::new();
-
-//     for _conn_id in 0..pool_cnt {
-//         /* Elasticsearch connection */
-//         let es_connection: EsRepositoryPub = match EsRepositoryPub::new(
-//             es_host.clone(),
-//             &es_id,
-//             &es_pw,
-//         ) {
-//             Ok(es_client) => es_client,
-//             Err(err) => {
-//                 error!("[DB Connection Error][initialize_db_clients()] Failed to create Elasticsearch client : {:?}", err);
-//                 panic!("[DB Connection Error][initialize_db_clients()] Failed to create Elasticsearch client : {:?}", err);
-//             }
-//         };
-
-//         es_pool_vec.push_back(es_connection);
-//     }
-
-//     es_pool_vec
-// }
-
-// #[doc = "Function to get elasticsearch connection"]
-// async fn get_elastic_conn() -> Result<EsRepositoryPub, anyhow::Error> {
-//     /* Elasticsearch Connection 이 부족한 경우를 대비하여 대기 시간을 걸어준다. */
-//     for try_cnt in 1..=10 {
-//         let es_repo: Option<EsRepositoryPub> = {
-//             let mut pool: MutexGuard<'_, VecDeque<EsRepositoryPub>> =
-//                 ELASTICSEARCH_CONN_POOL.lock().await;
-
-//             /* 여기서 pool.pop_front()가 실행된 후, pool은 스코프를 벗어나면서 자동 해제 */
-//             let inner_pool: Option<EsRepositoryPub> = pool.pop_front();
-//             info!(
-//                 "[connection get()] Elasticsearch pool.len = {:?}",
-//                 pool.len()
-//             );
-
-//             inner_pool
-//         };
-
-//         if let Some(es_repo) = es_repo {
-//             return Ok(es_repo);
-//         }
-
-//         warn!(
-//             "[Attempt {}] The Elasticsearch connection pool does not have an idle connection.",
-//             try_cnt
-//         );
-
-//         tokio::time::sleep(Duration::from_secs(7)).await;
-//     }
-
-//     return Err(anyhow!(
-//         "[Error][get_elastic_conn()] Cannot Find Elasticsearch Connection"
-//     ));
-// }
-
-// #[doc = "Function to return Elasticsearch connection objects"]
-// pub async fn release_elastic_conn(es_repo: EsRepositoryPub) {
-//     let mut pool: MutexGuard<'_, VecDeque<EsRepositoryPub>> = ELASTICSEARCH_CONN_POOL.lock().await;
-
-//     pool.push_back(es_repo);
-//     info!(
-//         "[connection return] Elasticsearch pool.len = {:?}",
-//         pool.len()
-//     );
-// }
-
-// #[doc = "Functions that return Elasticsearch guard connections"]
-// pub async fn get_elastic_guard_conn() -> Result<ElasticConnGuard, anyhow::Error> {
-//     let es_guard: ElasticConnGuard = ElasticConnGuard::new().await?;
-
-//     Ok(es_guard)
-// }
-
-// #[doc = "RAII Pattern: Guard to automatically return connections"]
-// pub struct ElasticConnGuard {
-//     es_repo: Option<EsRepositoryPub>,
-// }
-
-// impl ElasticConnGuard {
-//     pub async fn new() -> Result<Self, anyhow::Error> {
-//         let es_repo: EsRepositoryPub = get_elastic_conn().await?;
-//         Ok(Self {
-//             es_repo: Some(es_repo),
-//         })
-//     }
-// }
-
-// impl Deref for ElasticConnGuard {
-//     type Target = EsRepositoryPub;
-//     fn deref(&self) -> &Self::Target {
-//         self.es_repo
-//             .as_ref()
-//             .expect("[Error] Attempted to dereference an empty ElasticConnGuard")
-//     }
-// }
-
-// impl Drop for ElasticConnGuard {
-//     fn drop(&mut self) {
-//         if let Some(es_repo) = self.es_repo.take() {
-//             let _ = tokio::spawn(async move {
-//                 release_elastic_conn(es_repo).await;
-//             });
-//         }
-//     }
-// }
-
-#[async_trait]
-pub trait EsRepository {
-    async fn get_search_query(
-        &self,
-        es_query: &Value,
-        index_name: &str,
-    ) -> Result<Value, anyhow::Error>;
-    async fn post_query(&self, document: &Value, index_name: &str) -> Result<(), anyhow::Error>;
-    //async fn delete_query(&self, doc_id: &str, index_name: &str) -> Result<(), anyhow::Error>;
-
-    async fn post_query_struct<T: Serialize + Sync>(
-        &self,
-        param_struct: &T,
-        index_name: &str,
-    ) -> Result<(), anyhow::Error>;
-
-    async fn delete_query(&self, doc_id: &str, index_name: &str) -> Result<(), anyhow::Error>;
-}
-
 #[derive(Debug, Getters, Clone)]
 pub struct EsRepositoryPub {
     es_clients: Vec<EsClient>,
@@ -227,7 +85,6 @@ pub struct EsRepositoryPub {
 
 #[derive(Debug, Getters, Clone, new)]
 pub(crate) struct EsClient {
-    host: String,
     es_conn: Elasticsearch,
 }
 
@@ -236,7 +93,7 @@ impl EsRepositoryPub {
         let mut es_clients: Vec<EsClient> = Vec::new();
 
         for url in es_url_vec {
-            let parse_url: String = format!("http://{}:{}@{}", es_id, es_pw, url);
+            let parse_url: String = format!("http://{}:{}@{}", es_id, encode(es_pw), url);
 
             let es_url: Url = Url::parse(&parse_url)?;
             let conn_pool: SingleNodeConnectionPool = SingleNodeConnectionPool::new(es_url);
@@ -245,7 +102,7 @@ impl EsRepositoryPub {
                 .build()?;
 
             let elastic_conn: Elasticsearch = Elasticsearch::new(transport);
-            let es_client: EsClient = EsClient::new(url, elastic_conn);
+            let es_client: EsClient = EsClient::new(elastic_conn);
 
             es_clients.push(es_client);
         }
@@ -353,14 +210,16 @@ impl EsRepository for EsRepositoryPub {
     async fn delete_query(&self, doc_id: &str, index_name: &str) -> Result<(), anyhow::Error> {
         let response: Response = self
             .execute_on_any_node(|es_client| async move {
-
                 let response: Response = es_client
                     .es_conn
                     .delete(DeleteParts::IndexId(index_name, doc_id))
                     .send()
                     .await?;
 
-                info!("[{}] document of [{}] Index has been erased", doc_id, index_name);
+                info!(
+                    "[{}] document of [{}] Index has been erased",
+                    doc_id, index_name
+                );
 
                 Ok(response)
             })

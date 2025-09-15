@@ -8,13 +8,6 @@ use crate::model::vector_index_log_format::*;
 
 #[async_trait]
 pub trait QueryService {
-    async fn get_query_result_vec<T, S>(
-        &self,
-        response_body: &Value,
-    ) -> Result<Vec<T>, anyhow::Error>
-    where
-        S: DeserializeOwned,
-        T: FromSearchHit<S>;
     async fn get_indexing_movement_log(
         &self,
         query_index: &str,
@@ -22,7 +15,7 @@ pub trait QueryService {
         index_type: &str,
         start_dt: NaiveDateTime,
         end_dt: NaiveDateTime,
-    ) -> Result<Vec<VectorIndexLogFormat>, anyhow::Error>;
+    ) -> Result<VectorIndexLogFormat, anyhow::Error>;
     async fn post_indexing_error_info(
         &self,
         index_name: &str,

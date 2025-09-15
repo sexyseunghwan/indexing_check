@@ -27,9 +27,6 @@ pub fn get_current_kor_naive_datetime_str() -> Result<String, anyhow::Error> {
     Ok(cur_time_str)
 }
 
-/*
-    Function that returns the current UTC time as a string
-*/
 #[doc = "Function that returns the current UTC time as a string"]
 pub fn get_current_utc_naivedate_str(fmt: &str) -> Result<String, anyhow::Error> {
     let curr_time = get_current_utc_naivedate();
@@ -60,4 +57,9 @@ pub fn get_str_from_naive_datetime(
     Ok(result_date)
 }
 
-
+#[doc = "현재 UTC와 duration 이전 시각 반환해주는 함수"]
+pub fn calc_time_window(duration_secs: i64) -> (NaiveDateTime, NaiveDateTime) {
+    let curr_time_utc: NaiveDateTime = get_currnet_utc_naivedatetime();
+    let time_minutes_ago: NaiveDateTime = curr_time_utc - chrono::Duration::seconds(duration_secs);
+    (curr_time_utc, time_minutes_ago)
+}

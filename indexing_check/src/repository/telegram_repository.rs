@@ -62,11 +62,11 @@ impl TelebotRepository for TelebotRepositoryPub {
                 }
                 Err(err) => {
                     error!(
-                       "[Timeout Error][bot_send()] Attempt {} failed: {}. Retrying in 40 seconds.",
+                       "[Timeout Error][bot_send()] Attempt {} failed: {}. Retrying in 10 seconds.",
                        try_cnt + 1,
                        err
                    );
-                    sleep(Duration::from_secs(40)).await;
+                    sleep(Duration::from_secs(10)).await;
                 }
             }
         }

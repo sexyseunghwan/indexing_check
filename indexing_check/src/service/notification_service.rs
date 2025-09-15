@@ -186,11 +186,29 @@ impl NotificationService for NotificationServicePub {
         &self,
         error_alarm_infos: &[ErrorAlarmInfoFormat],
     ) -> Result<(), anyhow::Error> {
+        /* Telegram 이나 Imailer 가 통신되지 않을 경우를 고려한다. */
         /* 1. Telegram 알람 전송 */
-        self.send_indexing_failed_msg(error_alarm_infos).await?;
-
+        let telegram = async {
+            if let Err(e) = self.send_indexing_failed_msg(error_alarm_infos).await {
+                error!(
+                    "[ERROR][NotificationServicePub->send_message_to_receivers][telegram]{:?}",
+                    e
+                );
+            }
+        };
+        
         /* 2. Imailer 알람 전송 */
-        self.send_mail_to_receivers(error_alarm_infos).await?;
+        let mail = async {
+            if let Err(e) = self.send_mail_to_receivers(error_alarm_infos).await {
+                error!(
+                    "[ERROR][NotificationServicePub->send_message_to_receivers][imailer]{:?}",
+                    e
+                );
+            }
+        };
+
+        /* 병렬 실행 */
+        let ((), ()) = tokio::join!(telegram, mail);
 
         Ok(())
     }

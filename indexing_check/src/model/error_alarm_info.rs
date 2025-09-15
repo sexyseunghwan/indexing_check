@@ -29,7 +29,7 @@ impl ErrorAlarmInfo {
                 <td style='border: 1px solid #ddd; padding: 8px; text-align: left;'>{}</td>
                 <td style='border: 1px solid #ddd; padding: 8px; text-align: left; color: {};'>{}</td>
             </tr>",
-            self.index_name, 
+            self.index_name,
             self.indexing_cnt_num.to_formatted_string(&Locale::en), self.declare_index_size.to_formatted_string(&Locale::en),
             self.index_type(),
             self.timestamp(),
@@ -37,5 +37,6 @@ impl ErrorAlarmInfo {
         );
 
         Ok(html_form)
+
     }
 }

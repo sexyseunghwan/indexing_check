@@ -14,10 +14,11 @@ History     : 2024-12-30 Seunghwan Shin       # [v.1.0.0] first create
                                                 1) 코드 구조 변경 및 smtp -> imailer 로 변환
                                                 2) Elasticsearch 비밀번호 url 인코딩 처리 추가
               2025-09-11 Seunghwan Shin       # [v.2.1.0] 코드 리팩토링
+              2025-09-13 Seunghwan Shin       # [v.2.2.0]
 */
-mod prelude;
-mod external_deps;
 mod common;
+mod external_deps;
+mod prelude;
 use common::*;
 
 mod utils_modules;
@@ -57,7 +58,7 @@ async fn main() {
 
     let alarm_handler: Arc<MainHandler<NotificationServicePub, QueryServicePub>> =
         Arc::clone(&handler_arc);
-    
+
     /* 알람 테스크 */
     tokio::spawn(async move {
         let mut other_interval: Interval = tokio::time::interval(Duration::from_secs(60));
@@ -80,10 +81,13 @@ async fn main() {
             Ok(index_schdules) => index_schdules,
             Err(e) => {
                 error!("[Error][Failed to load index schedules config] {:?}", e);
-                panic!("[Fatal] Cannot continue without valid configuration: {:?}", e);
+                panic!(
+                    "[Fatal] Cannot continue without valid configuration: {:?}",
+                    e
+                );
             }
         };
-    
+
     /*
         각 인덱스 별로 모니터링을 비동기적으로 실시해준다.
         스케쥴링 대기 작업 진행
@@ -95,8 +99,14 @@ async fn main() {
             Arc::clone(&handler_arc);
 
         tokio::spawn(async move {
-            if let Err(e) = handler_arc_clone.main_schedule_task(index_clone.clone()).await {
-                error!("[Error][main_schedule_task][{}] {:?}", index_clone.index_name, e);
+            if let Err(e) = handler_arc_clone
+                .main_schedule_task(index_clone.clone())
+                .await
+            {
+                error!(
+                    "[Error][main_schedule_task][{}] {:?}",
+                    index_clone.index_name, e
+                );
             }
         });
     }

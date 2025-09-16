@@ -95,7 +95,7 @@ impl QueryServicePub {
         })?;
 
         let first_hit: &Value = arr
-            .get(0)
+            .first()
             .ok_or_else(|| anyhow!("[QueryServicePub->get_query_result] hits array is empty"))?;
 
         let id: String = first_hit

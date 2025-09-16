@@ -28,6 +28,7 @@ pub fn get_elasticsearch_config_info() -> Arc<ElasticServerConfig> {
 }
 
 #[doc = "SMTP config 정보"]
+#[allow(dead_code)]
 pub fn get_smtp_config_info() -> Arc<SmtpConfig> {
     let smtp_config: &Arc<SmtpConfig> = &SERVER_CONFIG.smtp;
     Arc::clone(smtp_config)
@@ -54,6 +55,7 @@ pub fn get_code_config_info() -> Arc<CodeConfig> {
 #[derive(Debug)]
 pub struct Config {
     pub elasticsearch: Arc<ElasticServerConfig>,
+    #[allow(dead_code)]
     pub smtp: Arc<SmtpConfig>,
     pub telegram: Arc<TelegramConfig>,
     pub system: Arc<SystemConfig>,

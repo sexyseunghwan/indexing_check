@@ -8,6 +8,7 @@ pub struct EmailStruct {
 }
 
 impl EmailStruct {
+    #[allow(dead_code)]
     pub fn new(
         index_name: &str,
         index_cnt: usize,

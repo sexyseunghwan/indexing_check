@@ -1,6 +1,5 @@
 use crate::common::*;
 
-use crate::utils_modules::traits::*;
 
 use crate::model::error_alarm_info::*;
 use crate::model::error_alarm_info_format::*;

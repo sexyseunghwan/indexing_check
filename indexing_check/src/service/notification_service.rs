@@ -2,7 +2,7 @@ use crate::common::*;
 
 use crate::model::{
     elastic_server_config::*, error_alarm_info::*, error_alarm_info_format::*,
-    receiver_emai_config::*, system_config::*, total_config::*,
+    receiver_email_config::*, system_config::*, total_config::*,
 };
 
 use crate::traits::repository_traits::sqlserver_repository_trait::SqlServerRepository;
